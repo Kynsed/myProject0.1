@@ -38,6 +38,7 @@ namespace MonocleSmoke
             TestAerialHover();
             TestDirectionalAttacks();
             TestVerticalSingle();
+            TestDownAttackCharge();
             TestRecoil();
 
             Console.WriteLine(fails == 0 ? "== COMBATE OK ==" : ("== " + fails + " FALHA(S) =="));
@@ -231,6 +232,34 @@ namespace MonocleSmoke
             for (int i = 0; i < 60 && combo.Attacking; i++) Step(lvl, Keys.Up);
             Check("Vertical: nao avanca o combo (proximo horizontal = estagio 1)",
                 combo.NextStage == 0, "NextStage=" + combo.NextStage);
+        }
+
+        private static void TestDownAttackCharge()
+        {
+            // como o dash aereo: 1 carga por voo, recarrega tocando o chao
+            var (lvl, p, combo, _) = Boot(withDummy: false);
+            Step(lvl, Keys.C);                           // pula
+            for (int i = 0; i < 8; i++) Step(lvl);
+            Step(lvl, Keys.Down, Keys.A);                // 1o golpe p/ baixo: usa a carga
+            for (int i = 0; i < 60 && combo.Attacking; i++) Step(lvl, Keys.Down);
+
+            Step(lvl, Keys.Down, Keys.A);                // ainda no ar, sem carga
+            Step(lvl, Keys.Down);
+            AttackHitbox atk = lvl.Entities.FindFirst<AttackHitbox>();
+            Check("Carga: 2o aperto p/ baixo no mesmo voo sai horizontal (sem carga)",
+                atk != null && atk.Dir.Y == 0f && !p.OnGround(),
+                atk == null ? "atk=null" : "Dir=" + atk.Dir + " ar=" + !p.OnGround());
+            for (int i = 0; i < 60 && combo.Attacking; i++) Step(lvl, Keys.Down);
+
+            for (int i = 0; i < 90 && !p.OnGround(); i++) Step(lvl); // pousa: recarrega
+            Step(lvl, Keys.C);                           // pula de novo
+            for (int i = 0; i < 8; i++) Step(lvl);
+            Step(lvl, Keys.Down, Keys.A);
+            Step(lvl, Keys.Down);
+            AttackHitbox atk2 = lvl.Entities.FindFirst<AttackHitbox>();
+            Check("Carga: tocar o chao recarrega o golpe p/ baixo",
+                atk2 != null && atk2.Dir == Vector2.UnitY,
+                atk2 == null ? "atk=null" : "Dir=" + atk2.Dir);
         }
 
         private static void TestRecoil()

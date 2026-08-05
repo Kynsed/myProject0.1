@@ -17,6 +17,8 @@ namespace myProject
     //  - direcional: chao + segurando CIMA = golpe acima; ar + segurando BAIXO = golpe abaixo.
     //    Verticais NAO fazem parte do combo: golpe unico de 5 (timing do 1o golpe) que
     //    tambem reseta a progressao do combo horizontal
+    //  - o golpe p/ baixo no ar tem UMA carga (como o dash aereo): consome ao usar e so
+    //    recarrega tocando o chao; sem carga o aperto sai como golpe horizontal normal
     //  - acertar algo que interage com o golpe (Health) da um pequeno recuo oposto ao golpe
     public class MeleeCombo : Component
     {
@@ -34,6 +36,7 @@ namespace myProject
         private float attackTimer;   // tempo restante do golpe atual
         private float windowTimer;   // janela p/ continuar o combo (conta fora do golpe)
         private bool buffered;
+        private bool downAttackCharge = true; // carga unica do golpe p/ baixo (recarrega no chao)
         private Facings comboFacing; // direcao do combo em andamento
         private Player player;
 
@@ -49,6 +52,9 @@ namespace myProject
         {
             if (player.Dead)
                 return;
+
+            if (player.OnGround())
+                downAttackCharge = true; // tocar o chao recarrega (como o refill do dash)
 
             if (Attacking)
             {
@@ -91,12 +97,16 @@ namespace myProject
 
         private void Fire(int stage)
         {
-            // direcao do golpe: chao + cima = acima | ar + baixo = abaixo | senao horizontal
+            // direcao do golpe: chao + cima = acima | ar + baixo = abaixo (se tiver carga)
+            // | senao horizontal
             Vector2 dir;
             if (player.OnGround() && Input.MoveY.Value == -1)
                 dir = -Vector2.UnitY;
-            else if (!player.OnGround() && Input.MoveY.Value == 1)
+            else if (!player.OnGround() && Input.MoveY.Value == 1 && downAttackCharge)
+            {
                 dir = Vector2.UnitY;
+                downAttackCharge = false; // consome a carga; so volta tocando o chao
+            }
             else
                 dir = Vector2.UnitX * (int)player.Facing;
 
