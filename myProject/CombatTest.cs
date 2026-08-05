@@ -36,22 +36,29 @@ namespace MonocleSmoke
             TestMovementLock();
             TestFacingReset();
             TestAerialHover();
+            TestDirectionalAttacks();
+            TestRecoil();
 
             Console.WriteLine(fails == 0 ? "== COMBATE OK ==" : ("== " + fails + " FALHA(S) =="));
             return fails;
         }
 
         // ---- helpers ----
-        private static (Level lvl, Player p, MeleeCombo combo, TrainingDummy dummy) Boot()
+        private static (Level lvl, Player p, MeleeCombo combo, TrainingDummy dummy) Boot(
+            bool withDummy = true, float playerX = 44f)
         {
             Level lvl = new Level { Bounds = new Rectangle(0, 0, 320, 180) };
             lvl.Add(new Solid(new Vector2(0f, 160f), 320f, 20f, false));
-            Player p = new Player(new Vector2(44f, 150f), PlayerSpriteMode.Madeline);
+            Player p = new Player(new Vector2(playerX, 150f), PlayerSpriteMode.Madeline);
             MeleeCombo combo = new MeleeCombo();
             p.Add(combo);
             lvl.Add(p);
-            TrainingDummy dummy = new TrainingDummy(new Vector2(60f, 160f));
-            lvl.Add(dummy);
+            TrainingDummy dummy = null;
+            if (withDummy)
+            {
+                dummy = new TrainingDummy(new Vector2(60f, 160f));
+                lvl.Add(dummy);
+            }
             lvl.Begin();
             lvl.BeforeUpdate();
             for (int i = 0; i < 60 && !p.OnGround(); i++) Step(lvl);
@@ -135,16 +142,16 @@ namespace MonocleSmoke
             Swing(lvl, combo);
             Swing(lvl, combo);
             Swing(lvl, combo);                                  // combo completo (5+7+9 = 21)
-            int hpAfterCombo = dummy.Health.Current;
-            Swing(lvl, combo);                                  // dentro da janela: recomeca
-            Check("Apos o finisher o combo recomeca no estagio 1 (dano 5)",
-                hpAfterCombo - dummy.Health.Current == 5,
-                "dano=" + (hpAfterCombo - dummy.Health.Current));
+            Check("Combo completo causa 21 (HP 30 -> 9)", dummy.Health.Current == 9,
+                "HP=" + dummy.Health.Current);
+            Step(lvl, Keys.A);                                  // dentro da janela: recomeca
+            Check("Apos o finisher o combo recomeca no estagio 1",
+                combo.Attacking && combo.Stage == 0, "Stage=" + combo.Stage);
         }
 
         private static void TestMovementLock()
         {
-            var (lvl, p, combo, dummy) = Boot();
+            var (lvl, p, combo, dummy) = Boot(withDummy: false); // sem alvo: golpe nao gera recuo
 
             Step(lvl, Keys.A); // dispara o golpe 1
             float x0 = p.X;
@@ -186,6 +193,50 @@ namespace MonocleSmoke
             float yEnd = p.Y;
             for (int i = 0; i < 12; i++) Step(lvl);  // intervalo: gravidade volta
             Check("Aereo: cai no intervalo entre golpes", p.Y > yEnd, "dY=" + (p.Y - yEnd));
+        }
+
+        private static void TestDirectionalAttacks()
+        {
+            // chao + segurando CIMA: golpe acima da cabeca
+            var (lvl, p, combo, dummy) = Boot(withDummy: false);
+            Step(lvl, Keys.Up, Keys.A);
+            Step(lvl, Keys.Up); // flush do Scene.Add
+            AttackHitbox atk = lvl.Entities.FindFirst<AttackHitbox>();
+            Check("Direcional: chao + cima = golpe acima do player",
+                atk != null && atk.Dir == -Vector2.UnitY && atk.Bottom <= p.Top + 0.01f,
+                atk == null ? "atk=null" : "Dir=" + atk.Dir + " atkBottom=" + atk.Bottom + " pTop=" + p.Top);
+
+            // ar + segurando BAIXO: golpe abaixo dos pes
+            var (lvl2, p2, combo2, _) = Boot(withDummy: false);
+            Step(lvl2, Keys.C);                          // pula
+            for (int i = 0; i < 8; i++) Step(lvl2);      // subindo
+            Step(lvl2, Keys.Down, Keys.A);
+            Step(lvl2, Keys.Down);
+            AttackHitbox atk2 = lvl2.Entities.FindFirst<AttackHitbox>();
+            Check("Direcional: ar + baixo = golpe abaixo do player",
+                atk2 != null && atk2.Dir == Vector2.UnitY && atk2.Top >= p2.Bottom - 0.01f,
+                atk2 == null ? "atk=null" : "Dir=" + atk2.Dir + " atkTop=" + atk2.Top + " pBottom=" + p2.Bottom);
+        }
+
+        private static void TestRecoil()
+        {
+            // horizontal: acertar o boneco desliza o player p/ tras (recuo com decaimento)
+            var (lvl, p, combo, dummy) = Boot();
+            float x0 = p.X;
+            Step(lvl, Keys.A);
+            for (int i = 0; i < 60 && combo.Attacking; i++) Step(lvl);
+            Check("Recuo: acertar com golpe horizontal empurra o player p/ tras",
+                p.X < x0, "dX=" + (p.X - x0));
+
+            // pogo: golpe p/ baixo no ar acertando o boneco recua o player p/ CIMA
+            var (lvl2, p2, combo2, dummy2) = Boot(playerX: 60f); // em cima do boneco
+            Step(lvl2, Keys.C);                          // pula
+            for (int i = 0; i < 8; i++) Step(lvl2);      // subindo (pes ~14px acima do boneco)
+            Step(lvl2, Keys.Down, Keys.A);
+            float yFire = p2.Y;
+            for (int i = 0; i < 60 && combo2.Attacking; i++) Step(lvl2, Keys.Down);
+            Check("Recuo: pogo — golpe p/ baixo acertando recua o player p/ cima",
+                p2.Y < yFire, "dY=" + (p2.Y - yFire));
         }
     }
 }

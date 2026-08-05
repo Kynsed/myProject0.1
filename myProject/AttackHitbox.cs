@@ -7,12 +7,15 @@ namespace myProject
 {
     // Jogo proprio (combate): hitbox de um golpe do combo. Segue o player, dura os frames
     // ativos do estagio e aplica dano uma unica vez por alvo (componente Health).
-    // O alcance cresce no finisher (estagio 3).
+    // Direcional: horizontal (Facing), p/ cima (chao + segurando cima) ou p/ baixo
+    // (ar + segurando baixo). No primeiro alvo atingido avisa o combo p/ aplicar o recuo.
     public class AttackHitbox : Entity
     {
         public int Stage;
         public int Damage;
+        public Vector2 Dir; // unitario: (+-1,0), (0,-1) ou (0,1)
 
+        // caixa horizontal por estagio; a vertical e a mesma rotacionada (w<->h)
         private static readonly Vector2[] Size =
         {
             new Vector2(20f, 14f),  // 1o golpe: rapido, curto
@@ -21,22 +24,36 @@ namespace myProject
         };
 
         private Player owner;
+        private MeleeCombo combo;
         private float life;
+        private bool recoiled;
         private HashSet<Entity> alreadyHit = new HashSet<Entity>();
 
-        public AttackHitbox(Player owner, int stage, float activeTime, int damage)
+        public AttackHitbox(Player owner, MeleeCombo combo, Vector2 dir, int stage, float activeTime, int damage)
             : base(owner.Position)
         {
             this.owner = owner;
+            this.combo = combo;
+            Dir = dir;
             Stage = stage;
             Damage = damage;
             life = activeTime;
             Depth = -1000001; // na frente do player
 
             Vector2 s = Size[stage];
-            float xOff = (owner.Facing == Facings.Right) ? 4f : -4f - s.X; // a partir da frente do corpo (8x11)
-            float yOff = -11f + (11f - s.Y) / 2f;                          // centrado no corpo
-            Collider = new Hitbox(s.X, s.Y, xOff, yOff);
+            if (dir.Y == 0f)
+            {
+                // horizontal: a partir da frente do corpo (8x11), centrado verticalmente
+                float xOff = (dir.X > 0f) ? 4f : -4f - s.X;
+                Collider = new Hitbox(s.X, s.Y, xOff, -11f + (11f - s.Y) / 2f);
+            }
+            else
+            {
+                // vertical: caixa rotacionada, centrada no eixo X do player
+                float w = s.Y, h = s.X;
+                float yOff = (dir.Y < 0f) ? -11f - h : 0f; // cima: acima da cabeca | baixo: abaixo dos pes
+                Collider = new Hitbox(w, h, -w / 2f, yOff);
+            }
         }
 
         public override void Update()
@@ -59,6 +76,11 @@ namespace myProject
                 {
                     alreadyHit.Add(target);
                     health.Damage(Damage);
+                    if (!recoiled)
+                    {
+                        recoiled = true;
+                        combo.ApplyRecoil(Dir); // recuo oposto ao golpe (1x por golpe)
+                    }
                 }
             }
 
