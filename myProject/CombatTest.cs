@@ -37,6 +37,7 @@ namespace MonocleSmoke
             TestFacingReset();
             TestAerialHover();
             TestDirectionalAttacks();
+            TestVerticalSingle();
             TestRecoil();
 
             Console.WriteLine(fails == 0 ? "== COMBATE OK ==" : ("== " + fails + " FALHA(S) =="));
@@ -218,6 +219,20 @@ namespace MonocleSmoke
                 atk2 == null ? "atk=null" : "Dir=" + atk2.Dir + " atkTop=" + atk2.Top + " pBottom=" + p2.Bottom);
         }
 
+        private static void TestVerticalSingle()
+        {
+            // vertical e golpe UNICO: dispara sempre com timing/dano do 1o estagio e
+            // reseta a progressao do combo horizontal
+            var (lvl, p, combo, dummy) = Boot(withDummy: false);
+            Swing(lvl, combo);                    // horizontal 1: proximo seria o estagio 2
+            Step(lvl, Keys.Up, Keys.A);           // vertical dentro da janela
+            Check("Vertical: dispara como golpe unico (estagio 1, dano 5)",
+                combo.Attacking && combo.Stage == 0, "Stage=" + combo.Stage);
+            for (int i = 0; i < 60 && combo.Attacking; i++) Step(lvl, Keys.Up);
+            Check("Vertical: nao avanca o combo (proximo horizontal = estagio 1)",
+                combo.NextStage == 0, "NextStage=" + combo.NextStage);
+        }
+
         private static void TestRecoil()
         {
             // horizontal: acertar o boneco desliza o player p/ tras (recuo com decaimento)
@@ -228,7 +243,7 @@ namespace MonocleSmoke
             Check("Recuo: acertar com golpe horizontal empurra o player p/ tras",
                 p.X < x0, "dX=" + (p.X - x0));
 
-            // pogo: golpe p/ baixo no ar acertando o boneco recua o player p/ CIMA
+            // pogo: golpe p/ baixo no ar acertando o boneco recua o player p/ CIMA e causa 5
             var (lvl2, p2, combo2, dummy2) = Boot(playerX: 60f); // em cima do boneco
             Step(lvl2, Keys.C);                          // pula
             for (int i = 0; i < 8; i++) Step(lvl2);      // subindo (pes ~14px acima do boneco)
@@ -237,6 +252,8 @@ namespace MonocleSmoke
             for (int i = 0; i < 60 && combo2.Attacking; i++) Step(lvl2, Keys.Down);
             Check("Recuo: pogo — golpe p/ baixo acertando recua o player p/ cima",
                 p2.Y < yFire, "dY=" + (p2.Y - yFire));
+            Check("Pogo: golpe unico causa 5 (HP 30 -> 25)",
+                dummy2.Health.Current == 25, "HP=" + dummy2.Health.Current);
         }
     }
 }

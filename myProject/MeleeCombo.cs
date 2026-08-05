@@ -14,7 +14,9 @@ namespace myProject
     //    movimento/queda so nos intervalos entre os golpes
     //  - virar de direcao no intervalo reseta o combo p/ o 1o golpe
     //  - so ataca a partir do estado Normal (0): nada de atacar em dash/climb/etc.
-    //  - direcional: chao + segurando CIMA = golpe acima; ar + segurando BAIXO = golpe abaixo
+    //  - direcional: chao + segurando CIMA = golpe acima; ar + segurando BAIXO = golpe abaixo.
+    //    Verticais NAO fazem parte do combo: golpe unico de 5 (timing do 1o golpe) que
+    //    tambem reseta a progressao do combo horizontal
     //  - acertar algo que interage com o golpe (Health) da um pequeno recuo oposto ao golpe
     public class MeleeCombo : Component
     {
@@ -89,13 +91,6 @@ namespace myProject
 
         private void Fire(int stage)
         {
-            Attacking = true;
-            buffered = false;
-            Stage = stage;
-            attackTimer = Duration[stage];
-            NextStage = (stage + 1) % 3; // depois do 3o golpe o combo recomeca
-            comboFacing = player.Facing;
-
             // direcao do golpe: chao + cima = acima | ar + baixo = abaixo | senao horizontal
             Vector2 dir;
             if (player.OnGround() && Input.MoveY.Value == -1)
@@ -104,6 +99,18 @@ namespace myProject
                 dir = Vector2.UnitY;
             else
                 dir = Vector2.UnitX * (int)player.Facing;
+
+            // vertical = golpe unico: dano/timing do 1o estagio e nao avanca o combo
+            bool vertical = dir.Y != 0f;
+            if (vertical)
+                stage = 0;
+
+            Attacking = true;
+            buffered = false;
+            Stage = stage;
+            attackTimer = Duration[stage];
+            NextStage = vertical ? 0 : (stage + 1) % 3; // depois do 3o golpe o combo recomeca
+            comboFacing = player.Facing;
 
             // trava movimento e queda durante o golpe: estado Dummy (11) sem gravidade.
             // DummyBegin reseta DummyGravity=true, entao desligar DEPOIS de setar o estado.
