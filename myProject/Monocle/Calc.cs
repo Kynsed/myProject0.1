@@ -969,11 +969,10 @@ namespace Monocle
                 return (to - from).SafeNormalize(length);
         }
 
-        // TODO: depends on Entity (not yet ported)
-        //public static Vector2 Toward(Entity from, Entity to, float length)
-        //{
-        //    return Toward(from.Position, to.Position, length);
-        //}
+        public static Vector2 Toward(Entity from, Entity to, float length)
+        {
+            return Toward(from.Position, to.Position, length);
+        }
 
         public static Vector2 Perpendicular(this Vector2 vector)
         {
@@ -990,12 +989,15 @@ namespace Monocle
             return new Vector2(MathHelper.Clamp(val.X, minX, maxX), MathHelper.Clamp(val.Y, minY, maxY));
         }
 
-        public static Vector2 Floor(this Vector2 val)
+        // NOTE: renomeado de Floor/Ceiling. MonoGame 3.8 tem Vector2.Floor()/Ceiling()
+        // de instância (muta in-place, retorna void) que tem precedência sobre extension.
+        // Em XNA/FNA o nome original Floor/Ceiling funciona como extension.
+        public static Vector2 Floored(this Vector2 val)
         {
             return new Vector2((int)Math.Floor(val.X), (int)Math.Floor(val.Y));
         }
 
-        public static Vector2 Ceiling(this Vector2 val)
+        public static Vector2 Ceilinged(this Vector2 val)
         {
             return new Vector2((int)Math.Ceiling(val.X), (int)Math.Ceiling(val.Y));
         }
@@ -1425,14 +1427,13 @@ namespace Monocle
 
         #region XML
 
-        // TODO: depends on Engine (not yet ported)
-        //public static XmlDocument LoadContentXML(string filename)
-        //{
-        //    XmlDocument xml = new XmlDocument();
-        //    using (var stream = TitleContainer.OpenStream(Path.Combine(Engine.Instance.Content.RootDirectory, filename)))
-        //        xml.Load(stream);
-        //    return xml;
-        //}
+        public static XmlDocument LoadContentXML(string filename)
+        {
+            XmlDocument xml = new XmlDocument();
+            using (var stream = TitleContainer.OpenStream(Path.Combine(Engine.Instance.Content.RootDirectory, filename)))
+                xml.Load(stream);
+            return xml;
+        }
 
         public static XmlDocument LoadXML(string filename)
         {
@@ -1442,11 +1443,10 @@ namespace Monocle
             return xml;
         }
 
-        // TODO: depends on Engine (not yet ported)
-        //public static bool ContentXMLExists(string filename)
-        //{
-        //    return File.Exists(Path.Combine(Engine.ContentDirectory, filename));
-        //}
+        public static bool ContentXMLExists(string filename)
+        {
+            return File.Exists(Path.Combine(Engine.ContentDirectory, filename));
+        }
 
         public static bool XMLExists(string filename)
         {
@@ -1504,6 +1504,15 @@ namespace Monocle
         public static Vector2 AttrVector2(this XmlElement xml, string xAttributeName, string yAttributeName, Vector2 defaultValue)
         {
             return new Vector2(xml.AttrFloat(xAttributeName, defaultValue.X), xml.AttrFloat(yAttributeName, defaultValue.Y));
+        }
+
+        public static Vector3 AttrVector3(this XmlElement xml, string attributeName)
+        {
+            string[] values = xml.Attr(attributeName).Split(',');
+            float x = float.Parse(values[0].Trim(), CultureInfo.InvariantCulture);
+            float y = float.Parse(values[1].Trim(), CultureInfo.InvariantCulture);
+            float z = float.Parse(values[2].Trim(), CultureInfo.InvariantCulture);
+            return new Vector3(x, y, z);
         }
 
         public static bool AttrBool(this XmlElement xml, string attributeName)
@@ -1902,36 +1911,35 @@ namespace Monocle
 
         #region Sorting
 
-        // TODO: depends on Entity (not yet ported)
-        //public static int SortLeftToRight(Entity a, Entity b)
-        //{
-        //    return (int)((a.X - b.X) * 100);
-        //}
+        public static int SortLeftToRight(Entity a, Entity b)
+        {
+            return (int)((a.X - b.X) * 100);
+        }
 
-        //public static int SortRightToLeft(Entity a, Entity b)
-        //{
-        //    return (int)((b.X - a.X) * 100);
-        //}
+        public static int SortRightToLeft(Entity a, Entity b)
+        {
+            return (int)((b.X - a.X) * 100);
+        }
 
-        //public static int SortTopToBottom(Entity a, Entity b)
-        //{
-        //    return (int)((a.Y - b.Y) * 100);
-        //}
+        public static int SortTopToBottom(Entity a, Entity b)
+        {
+            return (int)((a.Y - b.Y) * 100);
+        }
 
-        //public static int SortBottomToTop(Entity a, Entity b)
-        //{
-        //    return (int)((b.Y - a.Y) * 100);
-        //}
+        public static int SortBottomToTop(Entity a, Entity b)
+        {
+            return (int)((b.Y - a.Y) * 100);
+        }
 
-        //public static int SortByDepth(Entity a, Entity b)
-        //{
-        //    return a.Depth - b.Depth;
-        //}
+        public static int SortByDepth(Entity a, Entity b)
+        {
+            return a.Depth - b.Depth;
+        }
 
-        //public static int SortByDepthReversed(Entity a, Entity b)
-        //{
-        //    return b.Depth - a.Depth;
-        //}
+        public static int SortByDepthReversed(Entity a, Entity b)
+        {
+            return b.Depth - a.Depth;
+        }
 
         #endregion
 
@@ -2011,11 +2019,10 @@ namespace Monocle
 
         #endregion
 
-        // TODO: depends on Pnt (not yet ported)
-        //public static T At<T>(this T[,] arr, Pnt at)
-        //{
-        //    return arr[at.X, at.Y];
-        //}
+        public static T At<T>(this T[,] arr, Pnt at)
+        {
+            return arr[at.X, at.Y];
+        }
 
         public static string ConvertPath(string path)
         {
@@ -2031,38 +2038,37 @@ namespace Monocle
             return str;
         }
 
-        // TODO: depends on Coroutine (not yet ported)
-        //public static IEnumerator Do(params IEnumerator[] numerators)
-        //{
-        //    if (numerators.Length == 0)
-        //        yield break;
-        //    else if (numerators.Length == 1)
-        //        yield return numerators[0];
-        //    else
-        //    {
-        //        var routines = new List<Coroutine>();
-        //        foreach (var n in numerators)
-        //            routines.Add(new Coroutine(n, true));
-        //
-        //        while (true)
-        //        {
-        //            bool moving = false;
-        //            foreach (var r in routines)
-        //            {
-        //                r.Update();
-        //                if (!r.Finished)
-        //                    moving = true;
-        //            }
-        //
-        //            if (moving)
-        //                yield return null;
-        //            else
-        //                break;
-        //        }
-        //
-        //        routines = null;
-        //    }
-        //}
+        public static IEnumerator Do(params IEnumerator[] numerators)
+        {
+            if (numerators.Length == 0)
+                yield break;
+            else if (numerators.Length == 1)
+                yield return numerators[0];
+            else
+            {
+                var routines = new List<Coroutine>();
+                foreach (var n in numerators)
+                    routines.Add(new Coroutine(n, true));
+
+                while (true)
+                {
+                    bool moving = false;
+                    foreach (var r in routines)
+                    {
+                        r.Update();
+                        if (!r.Finished)
+                            moving = true;
+                    }
+
+                    if (moving)
+                        yield return null;
+                    else
+                        break;
+                }
+
+                routines = null;
+            }
+        }
 
         public static Rectangle ClampTo(this Rectangle rect, Rectangle clamp)
         {

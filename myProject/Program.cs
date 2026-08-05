@@ -1,17 +1,35 @@
-﻿using Microsoft.Xna.Framework;
-using Monocle;
+using System;
+using MonocleSmoke;
 
-System.Console.WriteLine("=== Smoke test Ease===");
+// Modos:
+//   (sem arg)        -> SmokeGame grafico (teste original do Monocle)
+//   --phys-test      -> validacao headless da fisica Actor/Solid (sem janela)
+//   --player-smoke   -> roda o Player real headless por 180 frames (verifica crash)
+//   --play           -> demo grafico jogavel: Player real sobre chao, hitboxes, teclado
+string mode = args.Length > 0 ? args[0] : "";
 
-System.Console.WriteLine("Ease.Linear(0.5)     = " + Ease.Linear(0.5f));      // 0.5
-System.Console.WriteLine("Ease.QuadIn(0.5)     = " + Ease.QuadIn(0.5f));      // 0.25
-System.Console.WriteLine("Ease.QuadOut(0.5)    = " + Ease.QuadOut(0.5f));     // 0.75
-System.Console.WriteLine("Ease.CubeIn(0.5)     = " + Ease.CubeIn(0.5f));      // 0.125
-System.Console.WriteLine("Ease.SineInOut(0.5)  = " + Ease.SineInOut(0.5f));   // 0.5
-System.Console.WriteLine("Ease.BounceOut(1.0)  = " + Ease.BounceOut(1.0f));   // ~1.0
-System.Console.WriteLine("Ease.UpDown(0.5)     = " + Ease.UpDown(0.5f));      // 1.0
-System.Console.WriteLine("Ease.UpDown(0.25)    = " + Ease.UpDown(0.25f));     // 0.5
-var inv = Ease.Invert(Ease.QuadIn);
-System.Console.WriteLine("Invert(QuadIn)(0.5)  = " + inv(0.5f));              // 0.75
+if (mode == "--phys-test")
+{
+    Environment.Exit(PhysTest.Run());
+}
+if (mode == "--player-smoke")
+{
+    Environment.Exit(PlayerSmoke.Run());
+}
+if (mode == "--player-fuzz")
+{
+    Environment.Exit(PlayerFuzz.Run());
+}
+if (mode == "--parity")
+{
+    Environment.Exit(ParityTest.Run());
+}
+if (mode == "--play")
+{
+    using var play = new PlayGame();
+    play.Run();
+    return;
+}
 
-System.Console.WriteLine("=== OK ===");
+using var game = new SmokeGame();
+game.Run();

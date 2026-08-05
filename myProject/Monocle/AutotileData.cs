@@ -1,0 +1,134 @@
+using System;
+using System.Xml;
+
+namespace Monocle
+{
+    public class AutotileData
+    {
+        public int[] Center;
+        public int[] Single;
+
+        public int[] SingleHorizontalLeft;
+        public int[] SingleHorizontalCenter;
+        public int[] SingleHorizontalRight;
+
+        public int[] SingleVerticalTop;
+        public int[] SingleVerticalCenter;
+        public int[] SingleVerticalBottom;
+
+        public int[] Top;
+        public int[] Bottom;
+        public int[] Left;
+        public int[] Right;
+
+        public int[] TopLeft;
+        public int[] TopRight;
+        public int[] BottomLeft;
+        public int[] BottomRight;
+
+        public int[] InsideTopLeft;
+        public int[] InsideTopRight;
+        public int[] InsideBottomLeft;
+        public int[] InsideBottomRight;
+
+        public AutotileData(XmlElement xml)
+        {
+            Center = Calc.ReadCSVInt(xml.ChildText("Center", ""));
+            Single = Calc.ReadCSVInt(xml.ChildText("Single", ""));
+
+            SingleHorizontalLeft = Calc.ReadCSVInt(xml.ChildText("SingleHorizontalLeft", ""));
+            SingleHorizontalCenter = Calc.ReadCSVInt(xml.ChildText("SingleHorizontalCenter", ""));
+            SingleHorizontalRight = Calc.ReadCSVInt(xml.ChildText("SingleHorizontalRight", ""));
+
+            SingleVerticalTop = Calc.ReadCSVInt(xml.ChildText("SingleVerticalTop", ""));
+            SingleVerticalCenter = Calc.ReadCSVInt(xml.ChildText("SingleVerticalCenter", ""));
+            SingleVerticalBottom = Calc.ReadCSVInt(xml.ChildText("SingleVerticalBottom", ""));
+
+            Top = Calc.ReadCSVInt(xml.ChildText("Top", ""));
+            Bottom = Calc.ReadCSVInt(xml.ChildText("Bottom", ""));
+            Left = Calc.ReadCSVInt(xml.ChildText("Left", ""));
+            Right = Calc.ReadCSVInt(xml.ChildText("Right", ""));
+
+            TopLeft = Calc.ReadCSVInt(xml.ChildText("TopLeft", ""));
+            TopRight = Calc.ReadCSVInt(xml.ChildText("TopRight", ""));
+            BottomLeft = Calc.ReadCSVInt(xml.ChildText("BottomLeft", ""));
+            BottomRight = Calc.ReadCSVInt(xml.ChildText("BottomRight", ""));
+
+            InsideTopLeft = Calc.ReadCSVInt(xml.ChildText("InsideTopLeft", ""));
+            InsideTopRight = Calc.ReadCSVInt(xml.ChildText("InsideTopRight", ""));
+            InsideBottomLeft = Calc.ReadCSVInt(xml.ChildText("InsideBottomLeft", ""));
+            InsideBottomRight = Calc.ReadCSVInt(xml.ChildText("InsideBottomRight", ""));
+        }
+
+        public int TileHandler()
+        {
+            // fully surrounded
+            if (Tiler.Left && Tiler.Right && Tiler.Up && Tiler.Down
+                && Tiler.UpLeft && Tiler.UpRight && Tiler.DownLeft && Tiler.DownRight)
+                return GetTileID(Center);
+
+            // singles (no vertical neighbors)
+            if (!Tiler.Up && !Tiler.Down)
+            {
+                if (Tiler.Left && Tiler.Right)
+                    return GetTileID(SingleHorizontalCenter);
+                else if (!Tiler.Left && !Tiler.Right)
+                    return GetTileID(Single);
+                else if (Tiler.Left)
+                    return GetTileID(SingleHorizontalRight);
+                else
+                    return GetTileID(SingleHorizontalLeft);
+            }
+
+            // singles (no horizontal neighbors)
+            else if (!Tiler.Left && !Tiler.Right)
+            {
+                if (Tiler.Up && Tiler.Down)
+                    return GetTileID(SingleVerticalCenter);
+                else if (Tiler.Down)
+                    return GetTileID(SingleVerticalTop);
+                else
+                    return GetTileID(SingleVerticalBottom);
+            }
+
+            // edges and corners
+            else
+            {
+                if (Tiler.Up && Tiler.Down && Tiler.Left && !Tiler.Right)
+                    return GetTileID(Right);
+                else if (Tiler.Up && Tiler.Down && !Tiler.Left && Tiler.Right)
+                    return GetTileID(Left);
+                else if (Tiler.Up && !Tiler.Left && Tiler.Right && !Tiler.Down)
+                    return GetTileID(BottomLeft);
+                else if (Tiler.Up && Tiler.Left && !Tiler.Right && !Tiler.Down)
+                    return GetTileID(BottomRight);
+                else if (Tiler.Down && Tiler.Right && !Tiler.Left && !Tiler.Up)
+                    return GetTileID(TopLeft);
+                else if (Tiler.Down && !Tiler.Right && Tiler.Left && !Tiler.Up)
+                    return GetTileID(TopRight);
+                else if (Tiler.Up && Tiler.Down && !Tiler.DownRight && Tiler.DownLeft)
+                    return GetTileID(InsideTopLeft);
+                else if (Tiler.Up && Tiler.Down && Tiler.DownRight && !Tiler.DownLeft)
+                    return GetTileID(InsideTopRight);
+                else if (Tiler.Up && Tiler.Down && Tiler.UpLeft && !Tiler.UpRight)
+                    return GetTileID(InsideBottomLeft);
+                else if (Tiler.Up && Tiler.Down && !Tiler.UpLeft && Tiler.UpRight)
+                    return GetTileID(InsideBottomRight);
+                else if (!Tiler.Down)
+                    return GetTileID(Bottom);
+                else
+                    return GetTileID(Top);
+            }
+        }
+
+        private int GetTileID(int[] choices)
+        {
+            if (choices.Length == 0)
+                return -1;
+            else if (choices.Length == 1)
+                return choices[0];
+            else
+                return Calc.Random.Choose(choices);
+        }
+    }
+}

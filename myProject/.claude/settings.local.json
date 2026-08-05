@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/kelvi/Downloads/**)",
+      "Bash(python -c ' *)",
+      "Bash(python -c \"import pdfplumber\")",
+      "Bash(python -c \"import fitz; print\\('pymupdf ok'\\)\")",
+      "Bash(pip install *)",
+      "Bash(pdftotext -layout \"ROADMAP.md.pdf\" -)",
+      "Read(//c/Users/kelvi/OneDrive/Documents/**)",
+      "Bash(find myProject/myProject -maxdepth 2 -iname \"actor.cs\" -o -iname \"collision*.cs\")",
+      "Bash(dotnet build *)",
+      "Bash(grep -vE '^\\\\s*//.*\\(Token: 0x|RID:|RVA:|File Offset:\\)' /c/Users/kelvi/OneDrive/Documents/celeste_source/Celeste/Player.cs)",
+      "Read(//tmp/**)",
+      "Bash(sed \"s/.*'\\\\\\(.*\\\\\\)'/\\\\1/\")",
+      "Bash(grep -vE '^\\\\s*//.*\\(Token|RID|RVA|File Offset\\)' celeste_source/Celeste/Trigger.cs)",
+      "Bash(sed -E 's/.*\\\\.//')",
+      "Bash(sed -E 's/Sprite\\\\.//')",
+      "Bash(grep -vE '^\\\\s*//.*\\(Token|RID|RVA|File Offset\\)' PlayerSprite.cs)",
+      "Bash(grep -vE '^\\\\s*//.*\\(Token|RID|RVA|File Offset\\)' PlayerHair.cs)",
+      "Bash(sed -E \"s/name '\\([^']+\\)'.*/\\\\1/\")",
+      "Bash(sed -E 's/^\\(level|Level\\)\\\\.//')",
+      "Bash(sed -E \"s/.*'\\([A-Za-z0-9_.<>]+\\)' does not contain.*for '\\([^']+\\)'/\\\\1.\\\\2/\")",
+      "Bash(grep -vE '^\\\\s*//.*\\(Token: 0x|RID:|RVA:|File Offset:\\)' Input.cs)",
+      "Bash(grep -vE '^\\\\s*//.*\\(Token: 0x|RID:|RVA:|File Offset:\\)' Settings.cs)",
+      "Bash(sed -E 's/SaveData\\\\.Instance\\\\.//')",
+      "Bash(grep -vE '^\\\\s*//.*\\(Token: 0x|RID:|RVA:|File Offset:\\)' SurfaceIndex.cs)",
+      "Bash(grep -vE '^\\\\s*//.*\\(Token: 0x|RID:|RVA:|File Offset:\\)' Celeste.cs)",
+      "Bash(grep -nA6 \"public static void Freeze\")",
+      "Bash(sed -E \"s/.*'\\([A-Za-z0-9_.<>]+\\)'.*for '\\([^']+\\)'/\\\\1.\\\\2/\")",
+      "Bash(sed -E 's/ \\\\[C:.*//')",
+      "Bash(perl -i -pe 's/\\\\Q-\\(Facings\\)Math.Sign\\(this.windDirection.X\\)\\\\E/-Math.Sign\\(this.windDirection.X\\)/g' Player.cs)",
+      "Bash(cd /c/Users/kelvi/OneDrive/Documents/myProject/myProject/Monocle *)",
+      "Bash(./bin/Debug/net9.0/myProject.exe --phys-test)",
+      "Bash(echo \"exit=$?\")"
+    ]
+  }
+}
