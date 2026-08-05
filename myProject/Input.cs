@@ -42,6 +42,8 @@ namespace myProject
             Talk = new VirtualButton(Settings.Instance.Talk, Gamepad, 0.08f, 0.2f);
             Grab = new VirtualButton(Settings.Instance.Grab, Gamepad, 0f, 0.2f);
             CrouchDash = new VirtualButton(Settings.Instance.DemoDash, Gamepad, 0.08f, 0.2f);
+            // NOTE: jogo proprio — botao de ataque (nao existe no Celeste). Buffer 0.08 como o Jump.
+            Attack = new VirtualButton(Settings.Instance.Attack, Gamepad, 0.08f, 0.2f);
         }
 
         public static void Deregister()
@@ -52,6 +54,7 @@ namespace myProject
             Grab?.Deregister();
             Talk?.Deregister();
             CrouchDash?.Deregister();
+            Attack?.Deregister();
             MoveX?.Deregister();
             MoveY?.Deregister();
             GliderMoveY?.Deregister();
@@ -167,6 +170,7 @@ namespace myProject
         public static VirtualButton Grab;
         public static VirtualButton Talk;
         public static VirtualButton CrouchDash;
+        public static VirtualButton Attack; // NOTE: jogo proprio (combate)
 
         private static bool grabToggle;
         public static Vector2 LastAim;

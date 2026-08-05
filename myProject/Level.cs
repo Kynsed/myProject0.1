@@ -67,6 +67,7 @@ namespace myProject
                 ?? new Vector2(Bounds.Left, Bounds.Bottom); // DefaultSpawnPoint do Celeste
             Player player = new Player(spawn, PlayerSpriteMode.Madeline);
             player.IntroType = Player.IntroTypes.Respawn;
+            player.Add(new MeleeCombo()); // NOTE: jogo proprio — combate acompanha o respawn
             Add(player);
             Entities.UpdateLists(); // como o LoadLevel: Added roda antes do snap da camera
             Camera.Position = GetFullCameraTargetAt(player, player.Position);

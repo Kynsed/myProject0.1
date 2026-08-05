@@ -24,6 +24,10 @@ if (mode == "--parity")
 {
     Environment.Exit(ParityTest.Run());
 }
+if (mode == "--combat-test")
+{
+    Environment.Exit(CombatTest.Run());
+}
 if (mode == "--play")
 {
     using var play = new PlayGame();
