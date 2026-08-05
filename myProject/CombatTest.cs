@@ -33,6 +33,9 @@ namespace MonocleSmoke
             TestSpeeds();
             TestResetByTimeout();
             TestResetAfterFinisher();
+            TestMovementLock();
+            TestFacingReset();
+            TestAerialHover();
 
             Console.WriteLine(fails == 0 ? "== COMBATE OK ==" : ("== " + fails + " FALHA(S) =="));
             return fails;
@@ -137,6 +140,52 @@ namespace MonocleSmoke
             Check("Apos o finisher o combo recomeca no estagio 1 (dano 5)",
                 hpAfterCombo - dummy.Health.Current == 5,
                 "dano=" + (hpAfterCombo - dummy.Health.Current));
+        }
+
+        private static void TestMovementLock()
+        {
+            var (lvl, p, combo, dummy) = Boot();
+
+            Step(lvl, Keys.A); // dispara o golpe 1
+            float x0 = p.X;
+            for (int i = 0; i < 60 && combo.Attacking; i++) Step(lvl, Keys.Right);
+            Check("Trava: segurar direita NAO move durante o golpe", p.X == x0, "dX=" + (p.X - x0));
+
+            for (int i = 0; i < 10; i++) Step(lvl, Keys.Right); // intervalo
+            Check("Trava: movimento volta no intervalo entre golpes", p.X > x0, "dX=" + (p.X - x0));
+        }
+
+        private static void TestFacingReset()
+        {
+            var (lvl, p, combo, dummy) = Boot();
+
+            Swing(lvl, combo); // golpe 1 olhando p/ direita
+            for (int i = 0; i < 6; i++) Step(lvl, Keys.Left); // vira no intervalo (dentro da janela)
+            Step(lvl, Keys.A); // ataca olhando p/ esquerda
+            Check("Virar de direcao reseta o combo (dispara estagio 1, nao 2)",
+                combo.Attacking && combo.Stage == 0, "Stage=" + combo.Stage);
+        }
+
+        private static void TestAerialHover()
+        {
+            var (lvl, p, combo, dummy) = Boot();
+
+            Step(lvl, Keys.C);                       // pula
+            for (int i = 0; i < 8; i++) Step(lvl);   // subindo
+            Step(lvl, Keys.A);                       // ataque aereo
+            float y0 = p.Y;
+            bool moved = false;
+            for (int i = 0; i < 60 && combo.Attacking; i++)
+            {
+                Step(lvl);
+                if (p.Y != y0) moved = true;
+            }
+            Check("Aereo: paira durante o golpe (Y constante, sem queda)", !moved,
+                "Y=" + p.Y + " y0=" + y0);
+
+            float yEnd = p.Y;
+            for (int i = 0; i < 12; i++) Step(lvl);  // intervalo: gravidade volta
+            Check("Aereo: cai no intervalo entre golpes", p.Y > yEnd, "dY=" + (p.Y - yEnd));
         }
     }
 }
