@@ -30,12 +30,12 @@ namespace myProject
         // Sequencia agil com rampa suave; o peso fica concentrado no fim do combo.
         //   estagio 1: 3 + 5 + 4 = 12 frames (o mais rapido)
         //   estagio 2: 4 + 5 + 7 = 16 frames (intermediario)
-        //   estagio 3: 5 + 6 + 8 = 19 frames (ligeiramente mais lento) + recuperacao
+        //   estagio 3: 5 + 6 + 8 = 19 frames (ligeiramente mais lento) + 6 de recuperacao
         public static readonly int[] Damage = { 5, 7, 9 };
         public static readonly float[] Duration = { 0.20f, 0.26f, 0.32f };   // tempo total do golpe
         public static readonly float[] Windup = { 0.05f, 0.07f, 0.08f };     // antes da hitbox nascer
         public static readonly float[] ActiveTime = { 0.08f, 0.09f, 0.10f }; // hitbox ativa
-        public const float FinisherRecovery = 0.20f; // pausa apos o 3o golpe antes de atacar de novo
+        public const float FinisherRecovery = 0.10f; // pausa apos o 3o golpe antes de atacar de novo
         public const float ComboWindow = 0.55f;   // tempo apos o fim do golpe p/ continuar o combo
         public const float RecoilSpeed = 60f;     // recuo ao acertar com golpe horizontal (px/s)
         public const float RecoilFriction = 300f; // decaimento do recuo (px/s^2)

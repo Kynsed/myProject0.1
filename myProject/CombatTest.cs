@@ -30,6 +30,7 @@ namespace MonocleSmoke
             typeof(Engine).GetProperty("Pooler").SetValue(null, new Pooler());
 
             TestDamagePerStage();
+            TestInfiniteDummy();
             TestSpeeds();
             TestResetByTimeout();
             TestResetAfterFinisher();
@@ -63,7 +64,8 @@ namespace MonocleSmoke
             TrainingDummy dummy = null;
             if (withDummy)
             {
-                dummy = new TrainingDummy(new Vector2(60f, 160f));
+                // finito: os testes medem dano no HP (no jogo os bonecos sao infinitos)
+                dummy = new TrainingDummy(new Vector2(60f, 160f), infinite: false);
                 lvl.Add(dummy);
             }
             lvl.Begin();
@@ -127,6 +129,35 @@ namespace MonocleSmoke
 
             Check("Cada golpe acerta o alvo uma unica vez", dummy.Health.Current == 9,
                 "HP=" + dummy.Health.Current);
+        }
+
+        private static void TestInfiniteDummy()
+        {
+            // boneco do jogo (padrao infinito): leva hit, pisca, mas nunca perde vida/morre
+            Level lvl = new Level { Bounds = new Rectangle(0, 0, 320, 180) };
+            lvl.Add(new Solid(new Vector2(0f, 160f), 320f, 20f, false));
+            Player p = new Player(new Vector2(44f, 150f), PlayerSpriteMode.Madeline);
+            MeleeCombo combo = new MeleeCombo();
+            p.Add(combo);
+            lvl.Add(p);
+            TrainingDummy dummy = new TrainingDummy(new Vector2(60f, 160f)); // padrao: infinito
+            lvl.Add(dummy);
+            lvl.Begin(); lvl.BeforeUpdate();
+            for (int i = 0; i < 60 && !p.OnGround(); i++) Step(lvl);
+
+            int hits = 0;
+            dummy.Health.OnDamaged = (int dmg) => hits++;
+
+            Swing(lvl, combo);
+            Check("Boneco infinito: registra o hit sem perder vida",
+                hits == 1 && dummy.Health.Current == dummy.Health.Max,
+                "hits=" + hits + " HP=" + dummy.Health.Current);
+
+            for (int i = 0; i < 12; i++) Swing(lvl, combo); // muito dano acumulado
+            Check("Boneco infinito: nunca morre nem some",
+                hits > 1 && dummy.Collidable && dummy.Visible
+                    && dummy.Health.Current == dummy.Health.Max,
+                "hits=" + hits + " HP=" + dummy.Health.Current + " vivo=" + dummy.Collidable);
         }
 
         private static void TestSpeeds()
@@ -413,6 +444,7 @@ namespace MonocleSmoke
             // no chao: passada a recuperacao do finisher, o ataque volta a sair
             int r = 0;
             while (combo.Recovering && r++ < 60) Step(lvl);
+            Step(lvl);                // frame neutro: Pressed so dispara na transicao
             Step(lvl, Keys.A);
             Check("Anti-stall: pousar restaura o ciclo aereo (ataque volta)",
                 combo.Attacking, "Attacking=" + combo.Attacking);

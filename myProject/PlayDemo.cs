@@ -39,13 +39,17 @@ namespace MonocleSmoke
 
                 if (e is TrainingDummy dummy)
                 {
-                    // boneco de treino: corpo cinza (flash branco no hit) + barra de vida
+                    // boneco de treino: corpo cinza (flash branco no hit). Barra de vida so
+                    // p/ bonecos finitos — os infinitos ficariam sempre cheios.
                     bool flash = dummy.Health.FlashTimer > 0f;
                     Draw.Rect(dummy.Collider, flash ? Color.White : Color.DarkGray);
                     dummy.Collider.Render(cam, flash ? Color.White : Color.Gray);
-                    float pct = MathHelper.Clamp(dummy.Health.Current / (float)dummy.Health.Max, 0f, 1f);
-                    Draw.Rect(dummy.Left - 2f, dummy.Top - 6f, dummy.Width + 4f, 3f, Color.Black * 0.6f);
-                    Draw.Rect(dummy.Left - 2f, dummy.Top - 6f, (dummy.Width + 4f) * pct, 3f, Color.LimeGreen);
+                    if (!dummy.Health.Infinite)
+                    {
+                        float pct = MathHelper.Clamp(dummy.Health.Current / (float)dummy.Health.Max, 0f, 1f);
+                        Draw.Rect(dummy.Left - 2f, dummy.Top - 6f, dummy.Width + 4f, 3f, Color.Black * 0.6f);
+                        Draw.Rect(dummy.Left - 2f, dummy.Top - 6f, (dummy.Width + 4f) * pct, 3f, Color.LimeGreen);
+                    }
                     continue;
                 }
 

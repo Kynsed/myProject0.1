@@ -9,6 +9,7 @@ namespace myProject
     {
         public int Max;
         public int Current;
+        public bool Infinite;             // nunca perde vida (bonecos de treino)
         public float FlashTimer;          // janela de flash visual pos-hit (lida pelo renderer)
         public Action<int> OnDamaged;     // recebe o dano aplicado
         public Action OnDeath;
@@ -22,7 +23,8 @@ namespace myProject
         {
             if (Current <= 0)
                 return;
-            Current -= amount;
+            if (!Infinite)
+                Current -= amount;
             FlashTimer = 0.12f;
             OnDamaged?.Invoke(amount);
             if (Current <= 0)
