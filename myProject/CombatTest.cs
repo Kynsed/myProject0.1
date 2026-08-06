@@ -33,6 +33,7 @@ namespace MonocleSmoke
             TestSpeeds();
             TestResetByTimeout();
             TestResetAfterFinisher();
+            TestComboMoveReset();
             TestMovementLock();
             TestFacingReset();
             TestAerialHover();
@@ -166,9 +167,37 @@ namespace MonocleSmoke
             Swing(lvl, combo);                                  // combo completo (5+7+9 = 21)
             Check("Combo completo causa 21 (HP 30 -> 9)", dummy.Health.Current == 9,
                 "HP=" + dummy.Health.Current);
-            Step(lvl, Keys.A);                                  // dentro da janela: recomeca
-            Check("Apos o finisher o combo recomeca no estagio 1",
-                combo.Attacking && combo.Stage == 0, "Stage=" + combo.Stage);
+
+            Step(lvl, Keys.A); // logo apos o finisher: ainda em recuperacao
+            Check("Finisher: recuperacao bloqueia o ataque seguinte",
+                !combo.Attacking && combo.Recovering, "Recovering=" + combo.Recovering);
+
+            int g = 0;
+            while (combo.Recovering && g++ < 60) Step(lvl);      // espera a recuperacao
+            Step(lvl, Keys.A);                                   // dentro da janela: recomeca
+            Check("Apos a recuperacao o combo recomeca no estagio 1",
+                combo.Attacking && combo.Stage == 0, "Stage=" + combo.Stage + " frames=" + g);
+        }
+
+        private static void TestComboMoveReset()
+        {
+            // ajuste curto p/ fechar o gap mantem o combo; andar demais quebra
+            var (lvl, p, combo, _) = Boot(withDummy: false);
+            Swing(lvl, combo);                                   // golpe 1
+            float x0 = p.X;
+            for (int i = 0; i < 8; i++) Step(lvl, Keys.Right);   // passo curto de ajuste
+            Step(lvl, Keys.A);
+            Check("Movimento: ajuste curto (< " + MeleeCombo.MoveAllowance + "px) mantem o combo",
+                combo.Attacking && combo.Stage == 1,
+                "andou=" + (p.X - x0) + " Stage=" + combo.Stage);
+            for (int i = 0; i < 60 && combo.Attacking; i++) Step(lvl);
+
+            float x1 = p.X;
+            for (int i = 0; i < 24; i++) Step(lvl, Keys.Right);  // corre p/ longe
+            Step(lvl, Keys.A);
+            Check("Movimento: andar alem da margem reseta o combo",
+                combo.Attacking && combo.Stage == 0,
+                "andou=" + (p.X - x1) + " Stage=" + combo.Stage);
         }
 
         private static void TestMovementLock()
@@ -381,7 +410,10 @@ namespace MonocleSmoke
             Check("Anti-stall: mashando no ar o player desce e pousa",
                 landed, "landed=" + landed);
 
-            Step(lvl); Step(lvl, Keys.A);                    // no chao: ataque volta a sair
+            // no chao: passada a recuperacao do finisher, o ataque volta a sair
+            int r = 0;
+            while (combo.Recovering && r++ < 60) Step(lvl);
+            Step(lvl, Keys.A);
             Check("Anti-stall: pousar restaura o ciclo aereo (ataque volta)",
                 combo.Attacking, "Attacking=" + combo.Attacking);
         }

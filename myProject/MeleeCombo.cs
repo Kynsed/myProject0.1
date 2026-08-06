@@ -27,19 +27,25 @@ namespace myProject
     public class MeleeCombo : Component
     {
         // Ritmo de lanca (Gwendolyn): cada golpe e anticipacao -> hitbox ativa -> recuperacao.
-        // O peso vem da anticipacao e da recuperacao, nao so da duracao total.
-        //   estagio 1: 5 + 6 + 8  = 19 frames | estagio 2: 7 + 7 + 12 = 26
-        //   estagio 3: 11 + 10 + 17 = 38 frames (finisher, o mais lento)
+        // Sequencia agil com rampa suave; o peso fica concentrado no fim do combo.
+        //   estagio 1: 3 + 5 + 4 = 12 frames (o mais rapido)
+        //   estagio 2: 4 + 5 + 7 = 16 frames (intermediario)
+        //   estagio 3: 5 + 6 + 8 = 19 frames (ligeiramente mais lento) + recuperacao
         public static readonly int[] Damage = { 5, 7, 9 };
-        public static readonly float[] Duration = { 0.32f, 0.44f, 0.62f };   // tempo total do golpe
-        public static readonly float[] Windup = { 0.08f, 0.12f, 0.18f };     // antes da hitbox nascer
-        public static readonly float[] ActiveTime = { 0.10f, 0.12f, 0.16f }; // hitbox ativa
+        public static readonly float[] Duration = { 0.20f, 0.26f, 0.32f };   // tempo total do golpe
+        public static readonly float[] Windup = { 0.05f, 0.07f, 0.08f };     // antes da hitbox nascer
+        public static readonly float[] ActiveTime = { 0.08f, 0.09f, 0.10f }; // hitbox ativa
+        public const float FinisherRecovery = 0.20f; // pausa apos o 3o golpe antes de atacar de novo
         public const float ComboWindow = 0.55f;   // tempo apos o fim do golpe p/ continuar o combo
         public const float RecoilSpeed = 60f;     // recuo ao acertar com golpe horizontal (px/s)
         public const float RecoilFriction = 300f; // decaimento do recuo (px/s^2)
         public const float DiveSpeed = 240f;      // velocidade do ataque descendente (px/s)
+        // margem de reposicionamento entre golpes: da p/ ajustar o gap com o inimigo, mas
+        // andar alem disso quebra o combo
+        public const float MoveAllowance = 24f;
 
         public bool Attacking { get; private set; }
+        public bool Recovering => recoveryTimer > 0f;
         public bool Diving { get; private set; }    // ataque descendente em andamento
         public int Stage { get; private set; }      // estagio do golpe em andamento (0..2)
         public int NextStage { get; private set; }  // estagio que o proximo aperto dispara
@@ -48,6 +54,8 @@ namespace myProject
         private float windupTimer;   // anticipacao restante ate a hitbox nascer
         private Vector2 pendingDir;  // direcao do golpe que vai nascer apos a anticipacao
         private float windowTimer;   // janela p/ continuar o combo (conta fora do golpe)
+        private float recoveryTimer; // pausa apos o finisher (bloqueia novo ataque)
+        private float comboAnchorX;  // X do player no ultimo golpe (mede o quanto ele andou)
         private bool buffered;
         private bool lockedAttack;   // golpe atual trava o player?
         private int airComboLeft = 3; // golpes horizontais aereos restantes neste voo
@@ -124,11 +132,19 @@ namespace myProject
                     NextStage = 0; // ficou sem apertar: combo reseta
             }
 
+            if (recoveryTimer > 0f)
+            {
+                recoveryTimer -= Engine.DeltaTime; // pausa do finisher: nao ataca ainda
+                return;
+            }
+
             if (Input.Attack.Pressed && player.StateMachine.State == 0)
             {
                 Input.Attack.ConsumeBuffer();
-                if (NextStage != 0 && player.Facing != comboFacing)
-                    NextStage = 0; // virou de direcao no intervalo: combo reseta
+                // combo so continua se o player ficou por perto e olhando p/ o mesmo lado
+                if (NextStage != 0 && (player.Facing != comboFacing
+                    || Math.Abs(player.X - comboAnchorX) > MoveAllowance))
+                    NextStage = 0;
                 Fire(NextStage);
             }
         }
@@ -173,6 +189,7 @@ namespace myProject
             attackTimer = Duration[stage];
             NextStage = vertical ? 0 : (stage + 1) % 3; // depois do 3o golpe o combo recomeca
             comboFacing = player.Facing;
+            comboAnchorX = player.X;
             Diving = dir.Y > 0f;
 
             // trava: horizontais e golpe p/ cima no chao. Golpe p/ cima no ar fica solto;
@@ -231,9 +248,15 @@ namespace myProject
         // encerra o golpe atual e abre a janela de combo (dispara o bufferizado, se houver)
         private void FinishAttack()
         {
+            bool finisher = Stage == 2; // so golpes horizontais chegam ao 3o estagio
             Attacking = false;
             windupTimer = 0f;
             windowTimer = ComboWindow;
+            if (finisher)
+            {
+                recoveryTimer = FinisherRecovery; // fim do combo: pausa antes do proximo
+                buffered = false;
+            }
             if (buffered)
                 Fire(NextStage);
             else
