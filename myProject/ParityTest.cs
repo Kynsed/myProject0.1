@@ -69,6 +69,13 @@ namespace MonocleSmoke
             Console.WriteLine("-- respawn (morte) --");
             TestRespawn();
 
+            Console.WriteLine("-- blocos de movimento especial --");
+            TestWater();
+            TestFlyFeather();
+            TestBooster();
+            TestDreamBlock();
+            TestSwapBlock();
+
             Console.WriteLine("-- spikes (hazard) --");
             TestSpikes();
 
@@ -488,6 +495,165 @@ namespace MonocleSmoke
             Check("Spikes: respawn apos morte com bounce",
                 p2 != null && p2.StateMachine.State == 0 && Near(p2.X, 20f, 1f),
                 "frames=" + frames + (p2 == null ? " p2=null" : " X=" + p2.X));
+        }
+
+        // ---- blocos de movimento especial (portados fiel) ----
+
+        private static void TestWater()
+        {
+            // Water e so um collider trackeado; quem nada e o Player (estado 3 = StSwim).
+            Level lvl = new Level { Bounds = new Rectangle(0, 0, 320, 180) };
+            lvl.Add(new Solid(new Vector2(0f, 160f), 320f, 20f, false));
+            lvl.Add(new Water(new Vector2(0f, 100f), 320f, 60f));
+            Player p = new Player(new Vector2(60f, 60f), PlayerSpriteMode.Madeline);
+            lvl.Add(p); lvl.Begin(); lvl.BeforeUpdate();
+
+            bool swam = false;
+            for (int i = 0; i < 120 && !swam; i++)
+            {
+                Step(lvl);
+                swam = p.StateMachine.State == 3;
+            }
+            Check("Water: cair na agua entra no estado Swim (3)", swam, "state=" + p.StateMachine.State);
+
+            // dentro d'agua a queda satura bem abaixo do MaxFall normal (160)
+            float maxSpeedY = 0f;
+            for (int i = 0; i < 60; i++)
+            {
+                Step(lvl, Keys.Down);
+                maxSpeedY = Math.Max(maxSpeedY, p.Speed.Y);
+            }
+            Check("Water: nadando a descida e mais lenta que a queda livre",
+                maxSpeedY < MaxFall, "maxSpeed.Y=" + maxSpeedY);
+        }
+
+        private static void TestFlyFeather()
+        {
+            // pena joga o player no estado 19 (StarFly) e some por 3s
+            Level lvl = new Level { Bounds = new Rectangle(0, 0, 320, 180) };
+            lvl.Add(new Solid(new Vector2(0f, 160f), 320f, 20f, false));
+            FlyFeather feather = new FlyFeather(new Vector2(60f, 140f));
+            lvl.Add(feather);
+            Player p = new Player(new Vector2(60f, 150f), PlayerSpriteMode.Madeline);
+            lvl.Add(p); lvl.Begin(); lvl.BeforeUpdate();
+
+            bool flying = false;
+            for (int i = 0; i < 60 && !flying; i++)
+            {
+                Step(lvl);
+                flying = p.StateMachine.State == 19;
+            }
+            Check("FlyFeather: coletar entra no estado StarFly (19)", flying,
+                "state=" + p.StateMachine.State);
+            Check("FlyFeather: some ao ser coletada", !feather.Collidable,
+                "Collidable=" + feather.Collidable);
+
+            // afasta o player: parado em cima ele recoleta a cada respawn (fiel ao Celeste,
+            // StartStarFly renova o voo quando ja esta no estado 19)
+            p.Position = new Vector2(260f, 150f);
+            for (int i = 0; i < 200; i++) Step(lvl);   // 3s de respawn
+            Check("FlyFeather: reaparece apos 3s", feather.Collidable,
+                "Collidable=" + feather.Collidable);
+        }
+
+        private static void TestBooster()
+        {
+            // booster joga no estado 4 (StBoost); dashar de dentro solta o boost
+            Level lvl = new Level { Bounds = new Rectangle(0, 0, 320, 180) };
+            lvl.Add(new Solid(new Vector2(0f, 160f), 320f, 20f, false));
+            Booster booster = new Booster(new Vector2(60f, 140f));
+            lvl.Add(booster);
+            Player p = new Player(new Vector2(60f, 150f), PlayerSpriteMode.Madeline);
+            lvl.Add(p); lvl.Begin(); lvl.BeforeUpdate();
+
+            bool boosted = false;
+            for (int i = 0; i < 60 && !boosted; i++)
+            {
+                Step(lvl);
+                boosted = p.StateMachine.State == 4;
+            }
+            Check("Booster: entrar joga no estado Boost (4)", boosted,
+                "state=" + p.StateMachine.State);
+
+            for (int i = 0; i < 20 && p.StateMachine.State == 4; i++) Step(lvl, Keys.Right, Keys.X);
+            float peak = 0f;
+            for (int i = 0; i < 10; i++)
+            {
+                Step(lvl, Keys.Right, Keys.X);
+                peak = Math.Max(peak, p.Speed.Length());
+            }
+            Check("Booster: dashar de dentro sai do Boost e lanca o player",
+                p.StateMachine.State != 4 && peak >= DashSpeed - 1f,
+                "state=" + p.StateMachine.State + " pico=" + peak);
+            // o booster carrega o player durante o dash (BoostingPlayer) e so solta no fim
+            Check("Booster: segura o player enquanto o dash dura", booster.BoostingPlayer,
+                "BoostingPlayer=" + booster.BoostingPlayer);
+
+            for (int i = 0; i < 60 && booster.BoostingPlayer; i++) Step(lvl);
+            Check("Booster: solta o player quando o dash acaba", !booster.BoostingPlayer,
+                "BoostingPlayer=" + booster.BoostingPlayer + " state=" + p.StateMachine.State);
+        }
+
+        private static void TestDreamBlock()
+        {
+            // com DreamDash no inventario, dashar contra o bloco entra no estado 9 (StDreamDash)
+            Level lvl = new Level { Bounds = new Rectangle(0, 0, 320, 180) };
+            lvl.Session.Inventory.DreamDash = true;
+            lvl.Add(new Solid(new Vector2(0f, 160f), 320f, 20f, false));
+            lvl.Add(new DreamBlock(new Vector2(96f, 120f), 48f, 40f));
+            Player p = new Player(new Vector2(60f, 150f), PlayerSpriteMode.Madeline);
+            lvl.Add(p); lvl.Begin(); lvl.BeforeUpdate();
+            Settle(lvl, p);
+
+            bool dreaming = false;
+            for (int i = 0; i < 60 && !dreaming; i++)
+            {
+                Step(lvl, Keys.Right, Keys.X);   // dash p/ a direita, contra o bloco
+                dreaming = p.StateMachine.State == 9;
+            }
+            Check("DreamBlock: dashar contra entra no DreamDash (9)", dreaming,
+                "state=" + p.StateMachine.State);
+
+            bool exited = false;
+            for (int i = 0; i < 90 && !exited; i++)
+            {
+                Step(lvl);
+                exited = p.StateMachine.State != 9;
+            }
+            Check("DreamBlock: atravessa e sai do outro lado",
+                exited && p.X > 144f, "X=" + p.X + " state=" + p.StateMachine.State);
+        }
+
+        private static void TestSwapBlock()
+        {
+            // dashar dispara o bloco ate o node (360/dist) e ele volta apos returnTimer
+            Level lvl = new Level { Bounds = new Rectangle(0, 0, 320, 180) };
+            lvl.Add(new Solid(new Vector2(0f, 160f), 320f, 20f, false));
+            SwapBlock block = new SwapBlock(new Vector2(80f, 120f), 32f, 8f, new Vector2(200f, 120f));
+            lvl.Add(block);
+            Player p = new Player(new Vector2(40f, 150f), PlayerSpriteMode.Madeline);
+            lvl.Add(p); lvl.Begin(); lvl.BeforeUpdate();
+            Settle(lvl, p);
+
+            float x0 = block.X;
+            Check("SwapBlock: direcao apontando p/ o node", block.Direction.X == 1f,
+                "Direction=" + block.Direction);
+
+            for (int i = 0; i < 5; i++) Step(lvl, Keys.Right, Keys.X);   // dash dispara
+            Check("SwapBlock: dash dispara o bloco (Swapping)",
+                block.Swapping || block.X > x0, "Swapping=" + block.Swapping + " X=" + block.X);
+
+            // ida: 360/dist = 3 lerp/s -> ~20 frames ate o node (antes do returnTimer de 0.8s)
+            float maxX = block.X;
+            for (int i = 0; i < 40; i++)
+            {
+                Step(lvl);
+                maxX = Math.Max(maxX, block.X);
+            }
+            Check("SwapBlock: alcanca o node (X=200)", maxX == 200f, "maxX=" + maxX);
+
+            for (int i = 0; i < 300; i++) Step(lvl);   // returnTimer 0.8s + volta lenta (40%)
+            Check("SwapBlock: volta sozinho ao inicio (X=80)", block.X == 80f, "X=" + block.X);
         }
     }
 }
