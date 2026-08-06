@@ -81,6 +81,19 @@ namespace MonocleSmoke
             scene.AfterUpdate();
         }
 
+        // roda ate a hitbox do golpe nascer (passa a anticipacao) e devolve
+        private static AttackHitbox WaitHitbox(Scene s, params Keys[] hold)
+        {
+            for (int i = 0; i < 30; i++)
+            {
+                AttackHitbox atk = s.Entities.FindFirst<AttackHitbox>();
+                if (atk != null)
+                    return atk;
+                Step(s, hold);
+            }
+            return null;
+        }
+
         // aperta ataque 1 frame e roda ate o golpe terminar; retorna frames de Attacking
         private static int Swing(Scene s, MeleeCombo combo)
         {
@@ -123,9 +136,12 @@ namespace MonocleSmoke
             int f3 = Swing(lvl, combo);
             Check("Velocidades: 1o rapido < 2o intermediario < 3o lento",
                 f1 < f2 && f2 < f3, "frames=" + f1 + "/" + f2 + "/" + f3);
-            // 0.20/0.30/0.42s a 60fps = 12/18/25 frames (+-1 por acumulo de float no timer)
-            Check("Duracoes ~0.20/0.30/0.42s (12/18/25 frames +-1)",
-                Math.Abs(f1 - 12) <= 1 && Math.Abs(f2 - 18) <= 1 && Math.Abs(f3 - 25) <= 1,
+            // frames esperados vem das constantes (+-1 por acumulo de float no timer)
+            int e1 = (int)Math.Round(MeleeCombo.Duration[0] * 60f);
+            int e2 = (int)Math.Round(MeleeCombo.Duration[1] * 60f);
+            int e3 = (int)Math.Round(MeleeCombo.Duration[2] * 60f);
+            Check("Duracoes batem com Duration[] (" + e1 + "/" + e2 + "/" + e3 + " frames +-1)",
+                Math.Abs(f1 - e1) <= 1 && Math.Abs(f2 - e2) <= 1 && Math.Abs(f3 - e3) <= 1,
                 "frames=" + f1 + "/" + f2 + "/" + f3);
         }
 
@@ -206,8 +222,7 @@ namespace MonocleSmoke
             // chao + segurando CIMA: golpe acima da cabeca
             var (lvl, p, combo, dummy) = Boot(withDummy: false);
             Step(lvl, Keys.Up, Keys.A);
-            Step(lvl, Keys.Up); // flush do Scene.Add
-            AttackHitbox atk = lvl.Entities.FindFirst<AttackHitbox>();
+            AttackHitbox atk = WaitHitbox(lvl, Keys.Up);
             Check("Direcional: chao + cima = golpe acima do player",
                 atk != null && atk.Dir == -Vector2.UnitY && atk.Bottom <= p.Top + 0.01f,
                 atk == null ? "atk=null" : "Dir=" + atk.Dir + " atkBottom=" + atk.Bottom + " pTop=" + p.Top);
@@ -216,8 +231,7 @@ namespace MonocleSmoke
             var (lvl2, p2, combo2, _) = Boot(withDummy: false);
             for (int i = 0; i < 8; i++) Step(lvl2, Keys.C); // pulo alto
             Step(lvl2, Keys.Down, Keys.A);
-            Step(lvl2, Keys.Down);
-            AttackHitbox atk2 = lvl2.Entities.FindFirst<AttackHitbox>();
+            AttackHitbox atk2 = WaitHitbox(lvl2, Keys.Down);
             Check("Direcional: ar + baixo = golpe abaixo do player",
                 atk2 != null && atk2.Dir == Vector2.UnitY && atk2.Top >= p2.Bottom - 0.01f,
                 atk2 == null ? "atk=null" : "Dir=" + atk2.Dir + " atkTop=" + atk2.Top + " pBottom=" + p2.Bottom);
@@ -226,8 +240,7 @@ namespace MonocleSmoke
             var (lvl3, p3, combo3, _) = Boot(withDummy: false);
             for (int i = 0; i < 8; i++) Step(lvl3, Keys.C);
             Step(lvl3, Keys.Up, Keys.A);
-            Step(lvl3, Keys.Up);
-            AttackHitbox atk3 = lvl3.Entities.FindFirst<AttackHitbox>();
+            AttackHitbox atk3 = WaitHitbox(lvl3, Keys.Up);
             Check("Direcional: ar + cima = golpe acima sem travar (Normal)",
                 atk3 != null && atk3.Dir == -Vector2.UnitY && p3.StateMachine.State == 0,
                 atk3 == null ? "atk=null" : "Dir=" + atk3.Dir + " state=" + p3.StateMachine.State);
@@ -255,8 +268,7 @@ namespace MonocleSmoke
             for (int s = 0; s < 3; s++)
             {
                 Step(lvl, Keys.A);
-                Step(lvl); // flush do Scene.Add
-                AttackHitbox atk = lvl.Entities.FindFirst<AttackHitbox>();
+                AttackHitbox atk = WaitHitbox(lvl);
                 w[s] = (atk != null) ? atk.Width : -1f;
                 for (int i = 0; i < 60 && combo.Attacking; i++) Step(lvl);
             }

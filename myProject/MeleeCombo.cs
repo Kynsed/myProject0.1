@@ -26,9 +26,14 @@ namespace myProject
     //  - acertar com horizontais da um pequeno recuo oposto ao golpe
     public class MeleeCombo : Component
     {
+        // Ritmo de lanca (Gwendolyn): cada golpe e anticipacao -> hitbox ativa -> recuperacao.
+        // O peso vem da anticipacao e da recuperacao, nao so da duracao total.
+        //   estagio 1: 5 + 6 + 8  = 19 frames | estagio 2: 7 + 7 + 12 = 26
+        //   estagio 3: 11 + 10 + 17 = 38 frames (finisher, o mais lento)
         public static readonly int[] Damage = { 5, 7, 9 };
-        public static readonly float[] Duration = { 0.20f, 0.30f, 0.42f };   // tempo total do golpe
-        public static readonly float[] ActiveTime = { 0.12f, 0.16f, 0.22f }; // hitbox ativa
+        public static readonly float[] Duration = { 0.32f, 0.44f, 0.62f };   // tempo total do golpe
+        public static readonly float[] Windup = { 0.08f, 0.12f, 0.18f };     // antes da hitbox nascer
+        public static readonly float[] ActiveTime = { 0.10f, 0.12f, 0.16f }; // hitbox ativa
         public const float ComboWindow = 0.55f;   // tempo apos o fim do golpe p/ continuar o combo
         public const float RecoilSpeed = 60f;     // recuo ao acertar com golpe horizontal (px/s)
         public const float RecoilFriction = 300f; // decaimento do recuo (px/s^2)
@@ -40,6 +45,8 @@ namespace myProject
         public int NextStage { get; private set; }  // estagio que o proximo aperto dispara
 
         private float attackTimer;   // tempo restante do golpe atual (nao usado no mergulho)
+        private float windupTimer;   // anticipacao restante ate a hitbox nascer
+        private Vector2 pendingDir;  // direcao do golpe que vai nascer apos a anticipacao
         private float windowTimer;   // janela p/ continuar o combo (conta fora do golpe)
         private bool buffered;
         private bool lockedAttack;   // golpe atual trava o player?
@@ -87,6 +94,14 @@ namespace myProject
                         FinishAttack();
                     }
                     return;
+                }
+
+                // anticipacao: a hitbox so nasce depois dela (peso do golpe)
+                if (windupTimer > 0f)
+                {
+                    windupTimer -= Engine.DeltaTime;
+                    if (windupTimer <= 0f)
+                        SpawnHitbox(pendingDir, ActiveTime[Stage]);
                 }
 
                 // no golpe travado, decai o recuo (unico movimento permitido);
@@ -174,9 +189,24 @@ namespace myProject
             else
                 EndAttackState(); // encadeou de um golpe travado p/ um solto: destrava ja
 
-            // no mergulho a hitbox nao expira por tempo: dura ate pousar/acertar
-            float active = Diving ? -1f : ActiveTime[stage];
-            currentAttack = new AttackHitbox(player, this, dir, stage, active, Damage[stage]);
+            currentAttack = null;
+            if (Diving)
+            {
+                // mergulho: sem anticipacao (a hitbox lidera a descida) e sem expirar por
+                // tempo — dura ate pousar/acertar
+                windupTimer = 0f;
+                SpawnHitbox(dir, -1f);
+            }
+            else
+            {
+                windupTimer = Windup[stage];
+                pendingDir = dir;
+            }
+        }
+
+        private void SpawnHitbox(Vector2 dir, float activeTime)
+        {
+            currentAttack = new AttackHitbox(player, this, dir, Stage, activeTime, Damage[Stage]);
             Scene.Add(currentAttack);
         }
 
@@ -202,6 +232,7 @@ namespace myProject
         private void FinishAttack()
         {
             Attacking = false;
+            windupTimer = 0f;
             windowTimer = ComboWindow;
             if (buffered)
                 Fire(NextStage);
