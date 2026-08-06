@@ -41,6 +41,7 @@ namespace MonocleSmoke
             TestRanges();
             TestDive();
             TestDiveLanding();
+            TestAirStall();
             TestRecoil();
 
             Console.WriteLine(fails == 0 ? "== COMBATE OK ==" : ("== " + fails + " FALHA(S) =="));
@@ -274,6 +275,7 @@ namespace MonocleSmoke
                 combo.Diving && p.Speed.Y == MeleeCombo.DiveSpeed && p.StateMachine.State == 11,
                 "Diving=" + combo.Diving + " Speed.Y=" + p.Speed.Y);
 
+            p.Dashes = 0; // p/ verificar que o acerto NAO restaura o dash
             bool hit = false;
             for (int i = 0; i < 90 && combo.Attacking; i++)
             {
@@ -285,6 +287,8 @@ namespace MonocleSmoke
             Check("Mergulho: acerto cancela o golpe e impulsiona p/ cima (Bounce)",
                 !combo.Attacking && p.Speed.Y <= -100f && p.StateMachine.State == 0,
                 "Speed.Y=" + p.Speed.Y + " state=" + p.StateMachine.State);
+            Check("Mergulho: o impulso NAO restaura o dash",
+                p.Dashes == 0, "Dashes=" + p.Dashes);
         }
 
         private static void TestDiveLanding()
@@ -310,6 +314,39 @@ namespace MonocleSmoke
             for (int i = 0; i < 60 && combo.Attacking; i++) Step(lvl);
             Check("Recuo: acertar com golpe horizontal empurra o player p/ tras",
                 p.X < x0, "dX=" + (p.X - x0));
+        }
+
+        private static void TestAirStall()
+        {
+            // anti-stall: mashar ataque no ar da no maximo 1 ciclo do combo (3 golpes)
+            // pairando; depois os apertos nao disparam e o player cai ate pousar
+            var (lvl, p, combo, _) = Boot(withDummy: false);
+            for (int i = 0; i < 8; i++) Step(lvl, Keys.C);   // pulo alto
+            Step(lvl, Keys.A);                               // golpe aereo 1
+            int guard = 0;
+            while (combo.Attacking && guard++ < 120)         // masha p/ encadear 2 e 3
+            {
+                if (guard % 2 == 0) Step(lvl); else Step(lvl, Keys.A);
+            }
+            Check("Anti-stall: apos 1 ciclo aereo o combo para (ainda no ar)",
+                !combo.Attacking && !p.OnGround(), "ar=" + !p.OnGround() + " guard=" + guard);
+
+            Step(lvl, Keys.A);                               // aperto extra no ar
+            Check("Anti-stall: aperto extra no ar nao dispara",
+                !combo.Attacking, "Attacking=" + combo.Attacking);
+
+            bool landed = false;
+            for (int i = 0; i < 300 && !landed; i++)         // mashando enquanto cai
+            {
+                if (i % 2 == 0) Step(lvl, Keys.A); else Step(lvl);
+                landed = p.OnGround();
+            }
+            Check("Anti-stall: mashando no ar o player desce e pousa",
+                landed, "landed=" + landed);
+
+            Step(lvl); Step(lvl, Keys.A);                    // no chao: ataque volta a sair
+            Check("Anti-stall: pousar restaura o ciclo aereo (ataque volta)",
+                combo.Attacking, "Attacking=" + combo.Attacking);
         }
     }
 }

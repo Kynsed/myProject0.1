@@ -16,7 +16,9 @@ namespace myProject
     //  - golpe p/ cima NO AR nao trava: player segue com fisica/controle normais
     //  - golpe p/ baixo no ar = ATAQUE DESCENDENTE (como o da Gwendolyn): mergulha reto
     //    ate pousar; acertar algo que interage com o golpe cancela o mergulho e IMPULSIONA
-    //    o player p/ cima (Player.Bounce, como a Hornet em Silksong)
+    //    o player p/ cima (Player.Bounce, como a Hornet em Silksong) SEM restaurar o dash
+    //  - anti-stall: os golpes horizontais no ar sao limitados a UM ciclo do combo (3)
+    //    por voo — depois disso apertar nao dispara e o player cai; pousar restaura
     //  - verticais NAO fazem parte do combo: golpe unico de 5 que reseta a progressao
     //  - acertar com horizontais da um pequeno recuo oposto ao golpe
     public class MeleeCombo : Component
@@ -38,6 +40,7 @@ namespace myProject
         private float windowTimer;   // janela p/ continuar o combo (conta fora do golpe)
         private bool buffered;
         private bool lockedAttack;   // golpe atual trava o player?
+        private int airComboLeft = 3; // golpes horizontais aereos restantes neste voo
         private Facings comboFacing; // direcao do combo em andamento
         private AttackHitbox currentAttack;
         private Player player;
@@ -54,6 +57,9 @@ namespace myProject
         {
             if (player.Dead)
                 return;
+
+            if (player.OnGround())
+                airComboLeft = 3; // pousar restaura o ciclo aereo
 
             if (Attacking)
             {
@@ -119,6 +125,17 @@ namespace myProject
             if (vertical)
                 stage = 0;
 
+            // anti-stall: no ar, so um ciclo do combo horizontal por voo
+            if (!vertical && !player.OnGround())
+            {
+                if (airComboLeft <= 0)
+                {
+                    EndAttackState(); // esgotou: nao dispara e o player segue caindo
+                    return;
+                }
+                airComboLeft--;
+            }
+
             Attacking = true;
             buffered = false;
             Stage = stage;
@@ -154,7 +171,11 @@ namespace myProject
             {
                 EndDive();
                 FinishAttack();
-                player.Bounce(player.Bottom); // Speed.Y=-140 + var jump + refill dash/stamina
+                // impulso p/ cima (Speed.Y=-140 + var jump), preservando o dash:
+                // o Bounce fiel refila dash/stamina, mas o acerto do mergulho NAO deve
+                int dashes = player.Dashes;
+                player.Bounce(player.Bottom);
+                player.Dashes = dashes;
             }
             else
                 player.Speed = -attackDir * RecoilSpeed;
