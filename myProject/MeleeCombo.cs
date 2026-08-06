@@ -12,7 +12,8 @@ namespace myProject
     //  - apertar de novo dentro da janela continua o combo; passar da janela reseta p/ o 1o
     //  - apertar durante um golpe fica bufferizado e dispara o proximo ao final
     //  - horizontais e o golpe p/ cima NO CHAO travam o player (Dummy sem gravidade;
-    //    movimento/queda so nos intervalos); virar de direcao no intervalo reseta o combo
+    //    movimento/queda so nos intervalos); virar de direcao no intervalo reseta o combo,
+    //    assim como sair do chao (pulo/queda de borda) com uma sequencia iniciada no solo
     //  - golpe p/ cima NO AR nao trava: player segue com fisica/controle normais
     //  - golpe p/ baixo no ar = ATAQUE DESCENDENTE (como o da Gwendolyn): mergulha reto
     //    ate pousar; acertar algo que interage com o golpe cancela o mergulho e IMPULSIONA
@@ -56,6 +57,7 @@ namespace myProject
         private float windowTimer;   // janela p/ continuar o combo (conta fora do golpe)
         private float recoveryTimer; // pausa apos o finisher (bloqueia novo ataque)
         private float comboAnchorX;  // X do player no ultimo golpe (mede o quanto ele andou)
+        private bool comboOnGround;  // a sequencia em andamento comecou no solo?
         private bool buffered;
         private bool lockedAttack;   // golpe atual trava o player?
         private int airComboLeft = 3; // golpes horizontais aereos restantes neste voo
@@ -125,6 +127,13 @@ namespace myProject
                 return;
             }
 
+            // sequencia iniciada no solo nao sobrevive a sair do chao (pulo/queda de borda)
+            if (comboOnGround && !player.OnGround())
+            {
+                comboOnGround = false;
+                NextStage = 0;
+            }
+
             if (windowTimer > 0f)
             {
                 windowTimer -= Engine.DeltaTime;
@@ -190,6 +199,7 @@ namespace myProject
             NextStage = vertical ? 0 : (stage + 1) % 3; // depois do 3o golpe o combo recomeca
             comboFacing = player.Facing;
             comboAnchorX = player.X;
+            comboOnGround = player.OnGround();
             Diving = dir.Y > 0f;
 
             // trava: horizontais e golpe p/ cima no chao. Golpe p/ cima no ar fica solto;

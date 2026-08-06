@@ -35,6 +35,7 @@ namespace MonocleSmoke
             TestResetByTimeout();
             TestResetAfterFinisher();
             TestComboMoveReset();
+            TestJumpResetsGroundCombo();
             TestMovementLock();
             TestFacingReset();
             TestAerialHover();
@@ -229,6 +230,25 @@ namespace MonocleSmoke
             Check("Movimento: andar alem da margem reseta o combo",
                 combo.Attacking && combo.Stage == 0,
                 "andou=" + (p.X - x1) + " Stage=" + combo.Stage);
+        }
+
+        private static void TestJumpResetsGroundCombo()
+        {
+            // sequencia comecada no solo nao sobrevive a um pulo
+            var (lvl, p, combo, _) = Boot(withDummy: false);
+            Swing(lvl, combo);                                   // golpe 1 no solo
+            Check("Pulo: antes de pular a sequencia segue viva (proximo = estagio 2)",
+                combo.NextStage == 1, "NextStage=" + combo.NextStage);
+
+            Step(lvl, Keys.C);                                   // pula
+            for (int i = 0; i < 4; i++) Step(lvl, Keys.C);       // ja fora do chao
+            Check("Pulo: sair do solo reseta o combo",
+                !p.OnGround() && combo.NextStage == 0,
+                "ar=" + !p.OnGround() + " NextStage=" + combo.NextStage);
+
+            Step(lvl, Keys.A);                                   // ataque aereo seguinte
+            Check("Pulo: o golpe seguinte sai como estagio 1",
+                combo.Attacking && combo.Stage == 0, "Stage=" + combo.Stage);
         }
 
         private static void TestMovementLock()
