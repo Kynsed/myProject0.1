@@ -17,8 +17,11 @@ namespace myProject
     //  - direcional: chao + segurando CIMA = golpe acima; ar + segurando BAIXO = golpe abaixo.
     //    Verticais NAO fazem parte do combo: golpe unico de 5 (timing do 1o golpe) que
     //    tambem reseta a progressao do combo horizontal
-    //  - o golpe p/ baixo no ar tem UMA carga (como o dash aereo): consome ao usar e so
-    //    recarrega tocando o chao; sem carga o aperto sai como golpe horizontal normal
+    //  - o golpe p/ baixo no ar tem UMA carga (como o dash aereo): consome ao usar e
+    //    recarrega tocando o chao OU acertando algo que interage com o golpe (pogo refill);
+    //    sem carga o aperto sai como golpe horizontal normal
+    //  - o golpe p/ baixo aereo NAO trava o player: ele continua caindo/controlando no ar
+    //    (a trava/pairar vale p/ os golpes horizontais e p/ cima)
     //  - acertar algo que interage com o golpe (Health) da um pequeno recuo oposto ao golpe
     public class MeleeCombo : Component
     {
@@ -36,7 +39,8 @@ namespace myProject
         private float attackTimer;   // tempo restante do golpe atual
         private float windowTimer;   // janela p/ continuar o combo (conta fora do golpe)
         private bool buffered;
-        private bool downAttackCharge = true; // carga unica do golpe p/ baixo (recarrega no chao)
+        private bool downAttackCharge = true; // carga unica do golpe p/ baixo (chao ou hit recarrega)
+        private bool lockedAttack;   // golpe atual trava o player? (p/ baixo aereo nao trava)
         private Facings comboFacing; // direcao do combo em andamento
         private Player player;
 
@@ -63,9 +67,13 @@ namespace myProject
                     Input.Attack.ConsumeBuffer();
                     buffered = true;
                 }
-                // decai o recuo (unico movimento permitido durante o golpe)
-                player.Speed.X = Calc.Approach(player.Speed.X, 0f, RecoilFriction * Engine.DeltaTime);
-                player.Speed.Y = Calc.Approach(player.Speed.Y, 0f, RecoilFriction * Engine.DeltaTime);
+                // no golpe travado, decai o recuo (unico movimento permitido);
+                // no golpe solto (p/ baixo aereo) a fisica normal cuida do movimento
+                if (lockedAttack)
+                {
+                    player.Speed.X = Calc.Approach(player.Speed.X, 0f, RecoilFriction * Engine.DeltaTime);
+                    player.Speed.Y = Calc.Approach(player.Speed.Y, 0f, RecoilFriction * Engine.DeltaTime);
+                }
                 attackTimer -= Engine.DeltaTime;
                 if (attackTimer <= 0f)
                 {
@@ -122,13 +130,20 @@ namespace myProject
             NextStage = vertical ? 0 : (stage + 1) % 3; // depois do 3o golpe o combo recomeca
             comboFacing = player.Facing;
 
-            // trava movimento e queda durante o golpe: estado Dummy (11) sem gravidade.
-            // DummyBegin reseta DummyGravity=true, entao desligar DEPOIS de setar o estado.
-            // DummyFriction fica desligado: o decaimento do recuo e feito aqui no combo.
-            player.StateMachine.State = 11;
-            player.DummyGravity = false;
-            player.DummyFriction = false;
-            player.Speed = Vector2.Zero;
+            // trava movimento e queda durante o golpe (exceto o p/ baixo aereo, que fica
+            // solto): estado Dummy (11) sem gravidade. DummyBegin reseta DummyGravity=true,
+            // entao desligar DEPOIS de setar o estado. DummyFriction desligado: o decaimento
+            // do recuo e feito aqui no combo.
+            lockedAttack = dir.Y <= 0f;
+            if (lockedAttack)
+            {
+                player.StateMachine.State = 11;
+                player.DummyGravity = false;
+                player.DummyFriction = false;
+                player.Speed = Vector2.Zero;
+            }
+            else
+                EndAttackState(); // encadeou de um golpe travado p/ o solto: destrava ja
 
             Scene.Add(new AttackHitbox(player, this, dir, stage, ActiveTime[stage], Damage[stage]));
         }
@@ -136,7 +151,15 @@ namespace myProject
         // pequeno recuo oposto ao golpe quando o ataque acerta algo que interage com ele
         public void ApplyRecoil(Vector2 attackDir)
         {
-            player.Speed = -attackDir * RecoilSpeed;
+            if (attackDir.Y > 0f)
+            {
+                // pogo: quique p/ cima preservando o X (player esta solto, gravidade ativa)
+                // e o hit devolve a carga do golpe p/ baixo
+                player.Speed.Y = -RecoilSpeed;
+                downAttackCharge = true;
+            }
+            else
+                player.Speed = -attackDir * RecoilSpeed;
         }
 
         // devolve o controle ao player no intervalo entre golpes
