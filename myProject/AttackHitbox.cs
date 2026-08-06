@@ -5,22 +5,23 @@ using Monocle;
 
 namespace myProject
 {
-    // Jogo proprio (combate): hitbox de um golpe do combo. Segue o player, dura os frames
-    // ativos do estagio e aplica dano uma unica vez por alvo (componente Health).
-    // Direcional: horizontal (Facing), p/ cima (chao + segurando cima) ou p/ baixo
-    // (ar + segurando baixo). No primeiro alvo atingido avisa o combo p/ aplicar o recuo.
+    // Jogo proprio (combate): hitbox de um golpe do combo. Segue o player e aplica dano
+    // uma unica vez por alvo (componente Health). Expira pelos frames ativos do estagio;
+    // no mergulho (activeTime < 0) persiste ate o combo remover (pouso/acerto).
+    // No primeiro alvo atingido avisa o combo p/ aplicar recuo/impulso.
     public class AttackHitbox : Entity
     {
         public int Stage;
         public int Damage;
         public Vector2 Dir; // unitario: (+-1,0), (0,-1) ou (0,1)
 
-        // caixa horizontal por estagio; a vertical e a mesma rotacionada (w<->h)
+        // caixa horizontal por estagio (1o e 2o com o MESMO alcance; so o 3o e maior);
+        // a vertical e a mesma rotacionada (w<->h)
         private static readonly Vector2[] Size =
         {
-            new Vector2(20f, 14f),  // 1o golpe: rapido, curto
-            new Vector2(22f, 14f),  // 2o golpe
-            new Vector2(26f, 16f),  // 3o golpe: finisher, mais alcance
+            new Vector2(20f, 14f),  // 1o golpe: rapido
+            new Vector2(20f, 14f),  // 2o golpe: mesmo alcance do 1o
+            new Vector2(24f, 16f),  // 3o golpe: finisher, ligeiramente maior
         };
 
         private Player owner;
@@ -84,9 +85,12 @@ namespace myProject
                 }
             }
 
-            life -= Engine.DeltaTime;
-            if (life <= 0f)
-                RemoveSelf();
+            if (life > 0f)
+            {
+                life -= Engine.DeltaTime;
+                if (life <= 0f)
+                    RemoveSelf();
+            }
         }
     }
 }

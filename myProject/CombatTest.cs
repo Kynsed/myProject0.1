@@ -38,8 +38,9 @@ namespace MonocleSmoke
             TestAerialHover();
             TestDirectionalAttacks();
             TestVerticalSingle();
-            TestDownAttackCharge();
-            TestDownUnlocked();
+            TestRanges();
+            TestDive();
+            TestDiveLanding();
             TestRecoil();
 
             Console.WriteLine(fails == 0 ? "== COMBATE OK ==" : ("== " + fails + " FALHA(S) =="));
@@ -209,16 +210,25 @@ namespace MonocleSmoke
                 atk != null && atk.Dir == -Vector2.UnitY && atk.Bottom <= p.Top + 0.01f,
                 atk == null ? "atk=null" : "Dir=" + atk.Dir + " atkBottom=" + atk.Bottom + " pTop=" + p.Top);
 
-            // ar + segurando BAIXO: golpe abaixo dos pes
+            // ar + segurando BAIXO: mergulho com golpe abaixo dos pes
             var (lvl2, p2, combo2, _) = Boot(withDummy: false);
-            Step(lvl2, Keys.C);                          // pula
-            for (int i = 0; i < 8; i++) Step(lvl2);      // subindo
+            for (int i = 0; i < 8; i++) Step(lvl2, Keys.C); // pulo alto
             Step(lvl2, Keys.Down, Keys.A);
             Step(lvl2, Keys.Down);
             AttackHitbox atk2 = lvl2.Entities.FindFirst<AttackHitbox>();
             Check("Direcional: ar + baixo = golpe abaixo do player",
                 atk2 != null && atk2.Dir == Vector2.UnitY && atk2.Top >= p2.Bottom - 0.01f,
                 atk2 == null ? "atk=null" : "Dir=" + atk2.Dir + " atkTop=" + atk2.Top + " pBottom=" + p2.Bottom);
+
+            // ar + segurando CIMA: golpe acima SEM travar (player segue no estado Normal)
+            var (lvl3, p3, combo3, _) = Boot(withDummy: false);
+            for (int i = 0; i < 8; i++) Step(lvl3, Keys.C);
+            Step(lvl3, Keys.Up, Keys.A);
+            Step(lvl3, Keys.Up);
+            AttackHitbox atk3 = lvl3.Entities.FindFirst<AttackHitbox>();
+            Check("Direcional: ar + cima = golpe acima sem travar (Normal)",
+                atk3 != null && atk3.Dir == -Vector2.UnitY && p3.StateMachine.State == 0,
+                atk3 == null ? "atk=null" : "Dir=" + atk3.Dir + " state=" + p3.StateMachine.State);
         }
 
         private static void TestVerticalSingle()
@@ -235,31 +245,60 @@ namespace MonocleSmoke
                 combo.NextStage == 0, "NextStage=" + combo.NextStage);
         }
 
-        private static void TestDownAttackCharge()
+        private static void TestRanges()
         {
-            // como o dash aereo: 1 carga por voo, recarrega tocando o chao.
-            // (segura C p/ subir alto; sem segurar baixo durante o golpe p/ nao fast-fallar)
+            // alcance: 1o e 2o golpes iguais; so o 3o (finisher) ligeiramente maior
             var (lvl, p, combo, _) = Boot(withDummy: false);
-            for (int i = 0; i < 8; i++) Step(lvl, Keys.C);        // pulo alto (var jump)
-            Step(lvl, Keys.Down, Keys.A);                         // 1o golpe p/ baixo: usa a carga
-            for (int i = 0; i < 60 && combo.Attacking; i++) Step(lvl);
+            float[] w = new float[3];
+            for (int s = 0; s < 3; s++)
+            {
+                Step(lvl, Keys.A);
+                Step(lvl); // flush do Scene.Add
+                AttackHitbox atk = lvl.Entities.FindFirst<AttackHitbox>();
+                w[s] = (atk != null) ? atk.Width : -1f;
+                for (int i = 0; i < 60 && combo.Attacking; i++) Step(lvl);
+            }
+            Check("Alcance: 1o == 2o e 3o ligeiramente maior",
+                w[0] > 0 && w[0] == w[1] && w[2] > w[1],
+                "larguras=" + w[0] + "/" + w[1] + "/" + w[2]);
+        }
 
-            Step(lvl, Keys.Down, Keys.A);                         // ainda no ar, sem carga
-            Step(lvl, Keys.Down);
-            AttackHitbox atk = lvl.Entities.FindFirst<AttackHitbox>();
-            Check("Carga: 2o aperto p/ baixo no mesmo voo sai horizontal (sem carga)",
-                atk != null && atk.Dir.Y == 0f && !p.OnGround(),
-                atk == null ? "atk=null" : "Dir=" + atk.Dir + " ar=" + !p.OnGround());
-            for (int i = 0; i < 60 && combo.Attacking; i++) Step(lvl);
-
-            for (int i = 0; i < 120 && !p.OnGround(); i++) Step(lvl); // pousa: recarrega
-            for (int i = 0; i < 8; i++) Step(lvl, Keys.C);        // pula de novo
+        private static void TestDive()
+        {
+            // mergulho (Gwendolyn): desce reto a DiveSpeed; acertar cancela e impulsiona
+            // p/ cima com o Bounce (Hornet em Silksong: -140 + var jump + refill)
+            var (lvl, p, combo, dummy) = Boot(playerX: 60f); // sobre o boneco
+            for (int i = 0; i < 8; i++) Step(lvl, Keys.C);   // pulo alto
             Step(lvl, Keys.Down, Keys.A);
-            Step(lvl, Keys.Down);
-            AttackHitbox atk2 = lvl.Entities.FindFirst<AttackHitbox>();
-            Check("Carga: tocar o chao recarrega o golpe p/ baixo",
-                atk2 != null && atk2.Dir == Vector2.UnitY,
-                atk2 == null ? "atk=null" : "Dir=" + atk2.Dir);
+            Check("Mergulho: desce reto a DiveSpeed (240) travado",
+                combo.Diving && p.Speed.Y == MeleeCombo.DiveSpeed && p.StateMachine.State == 11,
+                "Diving=" + combo.Diving + " Speed.Y=" + p.Speed.Y);
+
+            bool hit = false;
+            for (int i = 0; i < 90 && combo.Attacking; i++)
+            {
+                Step(lvl, Keys.Down);
+                if (dummy.Health.Current < 30) { hit = true; break; }
+            }
+            Check("Mergulho: acerta o alvo e causa 5 (HP 30 -> 25)",
+                hit && dummy.Health.Current == 25, "HP=" + dummy.Health.Current);
+            Check("Mergulho: acerto cancela o golpe e impulsiona p/ cima (Bounce)",
+                !combo.Attacking && p.Speed.Y <= -100f && p.StateMachine.State == 0,
+                "Speed.Y=" + p.Speed.Y + " state=" + p.StateMachine.State);
+        }
+
+        private static void TestDiveLanding()
+        {
+            // sem alvo, o mergulho persiste ate pousar e termina no chao
+            var (lvl, p, combo, _) = Boot(withDummy: false);
+            for (int i = 0; i < 8; i++) Step(lvl, Keys.C);
+            Step(lvl, Keys.Down, Keys.A);
+            for (int i = 0; i < 120 && combo.Attacking; i++) Step(lvl);
+            Step(lvl); // flush da remocao adiada da hitbox
+            Check("Mergulho: termina ao pousar (controle volta no chao)",
+                !combo.Attacking && p.OnGround() && p.StateMachine.State == 0
+                    && lvl.Entities.FindFirst<AttackHitbox>() == null,
+                "ground=" + p.OnGround() + " state=" + p.StateMachine.State);
         }
 
         private static void TestRecoil()
@@ -271,49 +310,6 @@ namespace MonocleSmoke
             for (int i = 0; i < 60 && combo.Attacking; i++) Step(lvl);
             Check("Recuo: acertar com golpe horizontal empurra o player p/ tras",
                 p.X < x0, "dX=" + (p.X - x0));
-
-            // pogo: golpe p/ baixo acertando quica o player p/ cima (fisica normal, sem trava)
-            var (lvl2, p2, combo2, dummy2) = Boot(playerX: 60f); // em cima do boneco
-            for (int i = 0; i < 8; i++) Step(lvl2, Keys.C);      // pulo alto (var jump)
-            Step(lvl2, Keys.Down, Keys.A);
-            bool bounced = false;
-            for (int i = 0; i < 60 && combo2.Attacking; i++)
-            {
-                Step(lvl2); // sem segurar baixo: fast fall atrapalharia a leitura do quique
-                if (dummy2.Health.Current < 30 && p2.Speed.Y < 0f)
-                    bounced = true; // no frame do hit ganhou velocidade p/ cima
-            }
-            Check("Recuo: pogo — acertar quica o player p/ cima (Speed.Y < 0)",
-                bounced, "bounced=" + bounced);
-            Check("Pogo: golpe unico causa 5 (HP 30 -> 25)",
-                dummy2.Health.Current == 25, "HP=" + dummy2.Health.Current);
-
-            // o hit devolveu a carga: da p/ pogar de novo no mesmo voo
-            Step(lvl2, Keys.Down, Keys.A);
-            Step(lvl2, Keys.Down);
-            AttackHitbox atk = lvl2.Entities.FindFirst<AttackHitbox>();
-            Check("Pogo: acertar devolve a carga (novo golpe p/ baixo no mesmo voo)",
-                atk != null && atk.Dir == Vector2.UnitY && !p2.OnGround(),
-                atk == null ? "atk=null" : "Dir=" + atk.Dir + " ar=" + !p2.OnGround());
-        }
-
-        private static void TestDownUnlocked()
-        {
-            // o golpe p/ baixo aereo NAO trava: player segue no estado Normal e continua caindo
-            var (lvl, p, combo, _) = Boot(withDummy: false);
-            Step(lvl, Keys.C);                           // pula
-            for (int i = 0; i < 8; i++) Step(lvl);
-            Step(lvl, Keys.Down, Keys.A);
-            float yFire = p.Y;
-            bool stayedNormal = true, fell = false;
-            for (int i = 0; i < 60 && combo.Attacking; i++)
-            {
-                Step(lvl, Keys.Down);
-                if (p.StateMachine.State != 0) stayedNormal = false;
-                if (p.Y > yFire) fell = true;
-            }
-            Check("Solto: golpe p/ baixo aereo nao trava (Normal + segue caindo)",
-                stayedNormal && fell, "normal=" + stayedNormal + " caiu=" + fell);
         }
     }
 }

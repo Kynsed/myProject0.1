@@ -8,40 +8,38 @@ namespace myProject
     // padrao de ataque da Gwendolyn (Odin Sphere Leifthrasir), reduzido de 4 p/ 3 golpes.
     //  - dano por estagio: 5 / 7 / 9
     //  - velocidade decrescente: 1o rapido, 2o intermediario, 3o lento
+    //  - alcance: 1o e 2o iguais; so o 3o e ligeiramente maior
     //  - apertar de novo dentro da janela continua o combo; passar da janela reseta p/ o 1o
     //  - apertar durante um golpe fica bufferizado e dispara o proximo ao final
-    //  - durante o golpe o player NAO se move nem cai (estado Dummy sem gravidade);
-    //    movimento/queda so nos intervalos entre os golpes
-    //  - virar de direcao no intervalo reseta o combo p/ o 1o golpe
-    //  - so ataca a partir do estado Normal (0): nada de atacar em dash/climb/etc.
-    //  - direcional: chao + segurando CIMA = golpe acima; ar + segurando BAIXO = golpe abaixo.
-    //    Verticais NAO fazem parte do combo: golpe unico de 5 (timing do 1o golpe) que
-    //    tambem reseta a progressao do combo horizontal
-    //  - o golpe p/ baixo no ar tem UMA carga (como o dash aereo): consome ao usar e
-    //    recarrega tocando o chao OU acertando algo que interage com o golpe (pogo refill);
-    //    sem carga o aperto sai como golpe horizontal normal
-    //  - o golpe p/ baixo aereo NAO trava o player: ele continua caindo/controlando no ar
-    //    (a trava/pairar vale p/ os golpes horizontais e p/ cima)
-    //  - acertar algo que interage com o golpe (Health) da um pequeno recuo oposto ao golpe
+    //  - horizontais e o golpe p/ cima NO CHAO travam o player (Dummy sem gravidade;
+    //    movimento/queda so nos intervalos); virar de direcao no intervalo reseta o combo
+    //  - golpe p/ cima NO AR nao trava: player segue com fisica/controle normais
+    //  - golpe p/ baixo no ar = ATAQUE DESCENDENTE (como o da Gwendolyn): mergulha reto
+    //    ate pousar; acertar algo que interage com o golpe cancela o mergulho e IMPULSIONA
+    //    o player p/ cima (Player.Bounce, como a Hornet em Silksong)
+    //  - verticais NAO fazem parte do combo: golpe unico de 5 que reseta a progressao
+    //  - acertar com horizontais da um pequeno recuo oposto ao golpe
     public class MeleeCombo : Component
     {
         public static readonly int[] Damage = { 5, 7, 9 };
         public static readonly float[] Duration = { 0.20f, 0.30f, 0.42f };   // tempo total do golpe
         public static readonly float[] ActiveTime = { 0.12f, 0.16f, 0.22f }; // hitbox ativa
-        public const float ComboWindow = 0.55f;  // tempo apos o fim do golpe p/ continuar o combo
-        public const float RecoilSpeed = 60f;    // impulso do recuo ao acertar (px/s)
+        public const float ComboWindow = 0.55f;   // tempo apos o fim do golpe p/ continuar o combo
+        public const float RecoilSpeed = 60f;     // recuo ao acertar com golpe horizontal (px/s)
         public const float RecoilFriction = 300f; // decaimento do recuo (px/s^2)
+        public const float DiveSpeed = 240f;      // velocidade do ataque descendente (px/s)
 
         public bool Attacking { get; private set; }
+        public bool Diving { get; private set; }    // ataque descendente em andamento
         public int Stage { get; private set; }      // estagio do golpe em andamento (0..2)
         public int NextStage { get; private set; }  // estagio que o proximo aperto dispara
 
-        private float attackTimer;   // tempo restante do golpe atual
+        private float attackTimer;   // tempo restante do golpe atual (nao usado no mergulho)
         private float windowTimer;   // janela p/ continuar o combo (conta fora do golpe)
         private bool buffered;
-        private bool downAttackCharge = true; // carga unica do golpe p/ baixo (chao ou hit recarrega)
-        private bool lockedAttack;   // golpe atual trava o player? (p/ baixo aereo nao trava)
+        private bool lockedAttack;   // golpe atual trava o player?
         private Facings comboFacing; // direcao do combo em andamento
+        private AttackHitbox currentAttack;
         private Player player;
 
         public MeleeCombo() : base(true, false) { }
@@ -57,9 +55,6 @@ namespace myProject
             if (player.Dead)
                 return;
 
-            if (player.OnGround())
-                downAttackCharge = true; // tocar o chao recarrega (como o refill do dash)
-
             if (Attacking)
             {
                 if (Input.Attack.Pressed)
@@ -67,8 +62,20 @@ namespace myProject
                     Input.Attack.ConsumeBuffer();
                     buffered = true;
                 }
+
+                if (Diving)
+                {
+                    // mergulho termina ao pousar (o acerto termina via ApplyRecoil/Bounce)
+                    if (player.OnGround())
+                    {
+                        EndDive();
+                        FinishAttack();
+                    }
+                    return;
+                }
+
                 // no golpe travado, decai o recuo (unico movimento permitido);
-                // no golpe solto (p/ baixo aereo) a fisica normal cuida do movimento
+                // no golpe solto (p/ cima aereo) a fisica normal cuida do movimento
                 if (lockedAttack)
                 {
                     player.Speed.X = Calc.Approach(player.Speed.X, 0f, RecoilFriction * Engine.DeltaTime);
@@ -76,14 +83,7 @@ namespace myProject
                 }
                 attackTimer -= Engine.DeltaTime;
                 if (attackTimer <= 0f)
-                {
-                    Attacking = false;
-                    windowTimer = ComboWindow;
-                    if (buffered)
-                        Fire(NextStage); // encadeia sem intervalo: continua travado no ar
-                    else
-                        EndAttackState();
-                }
+                    FinishAttack();
                 return;
             }
 
@@ -105,16 +105,12 @@ namespace myProject
 
         private void Fire(int stage)
         {
-            // direcao do golpe: chao + cima = acima | ar + baixo = abaixo (se tiver carga)
-            // | senao horizontal
+            // direcao do golpe: cima = acima | ar + baixo = mergulho | senao horizontal
             Vector2 dir;
-            if (player.OnGround() && Input.MoveY.Value == -1)
+            if (Input.MoveY.Value == -1)
                 dir = -Vector2.UnitY;
-            else if (!player.OnGround() && Input.MoveY.Value == 1 && downAttackCharge)
-            {
+            else if (!player.OnGround() && Input.MoveY.Value == 1)
                 dir = Vector2.UnitY;
-                downAttackCharge = false; // consome a carga; so volta tocando o chao
-            }
             else
                 dir = Vector2.UnitX * (int)player.Facing;
 
@@ -129,37 +125,62 @@ namespace myProject
             attackTimer = Duration[stage];
             NextStage = vertical ? 0 : (stage + 1) % 3; // depois do 3o golpe o combo recomeca
             comboFacing = player.Facing;
+            Diving = dir.Y > 0f;
 
-            // trava movimento e queda durante o golpe (exceto o p/ baixo aereo, que fica
-            // solto): estado Dummy (11) sem gravidade. DummyBegin reseta DummyGravity=true,
-            // entao desligar DEPOIS de setar o estado. DummyFriction desligado: o decaimento
-            // do recuo e feito aqui no combo.
-            lockedAttack = dir.Y <= 0f;
-            if (lockedAttack)
+            // trava: horizontais e golpe p/ cima no chao. Golpe p/ cima no ar fica solto;
+            // o mergulho usa o estado Dummy p/ descer reto, sem controle, ate pousar/acertar.
+            // DummyBegin reseta DummyGravity=true, entao desligar DEPOIS de setar o estado.
+            lockedAttack = dir.Y == 0f || (dir.Y < 0f && player.OnGround());
+            if (lockedAttack || Diving)
             {
                 player.StateMachine.State = 11;
                 player.DummyGravity = false;
                 player.DummyFriction = false;
-                player.Speed = Vector2.Zero;
+                player.Speed = Diving ? Vector2.UnitY * DiveSpeed : Vector2.Zero;
             }
             else
-                EndAttackState(); // encadeou de um golpe travado p/ o solto: destrava ja
+                EndAttackState(); // encadeou de um golpe travado p/ um solto: destrava ja
 
-            Scene.Add(new AttackHitbox(player, this, dir, stage, ActiveTime[stage], Damage[stage]));
+            // no mergulho a hitbox nao expira por tempo: dura ate pousar/acertar
+            float active = Diving ? -1f : ActiveTime[stage];
+            currentAttack = new AttackHitbox(player, this, dir, stage, active, Damage[stage]);
+            Scene.Add(currentAttack);
         }
 
-        // pequeno recuo oposto ao golpe quando o ataque acerta algo que interage com ele
+        // pequeno recuo oposto ao golpe; no mergulho, cancela e impulsiona p/ cima (Hornet)
         public void ApplyRecoil(Vector2 attackDir)
         {
             if (attackDir.Y > 0f)
             {
-                // pogo: quique p/ cima preservando o X (player esta solto, gravidade ativa)
-                // e o hit devolve a carga do golpe p/ baixo
-                player.Speed.Y = -RecoilSpeed;
-                downAttackCharge = true;
+                EndDive();
+                FinishAttack();
+                player.Bounce(player.Bottom); // Speed.Y=-140 + var jump + refill dash/stamina
             }
             else
                 player.Speed = -attackDir * RecoilSpeed;
+        }
+
+        // encerra o golpe atual e abre a janela de combo (dispara o bufferizado, se houver)
+        private void FinishAttack()
+        {
+            Attacking = false;
+            windowTimer = ComboWindow;
+            if (buffered)
+                Fire(NextStage);
+            else
+                EndAttackState();
+        }
+
+        // encerra o mergulho: remove a hitbox persistente e zera a descida
+        private void EndDive()
+        {
+            Diving = false;
+            buffered = false; // pouso/acerto nao encadeia golpe bufferizado no meio do mergulho
+            if (currentAttack != null && currentAttack.Scene != null)
+                currentAttack.RemoveSelf();
+            currentAttack = null;
+            if (player.Speed.Y > 0f)
+                player.Speed.Y = 0f;
         }
 
         // devolve o controle ao player no intervalo entre golpes
