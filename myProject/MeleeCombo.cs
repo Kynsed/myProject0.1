@@ -17,6 +17,9 @@ namespace myProject
     //  - golpe p/ baixo no ar = ATAQUE DESCENDENTE (como o da Gwendolyn): mergulha reto
     //    ate pousar; acertar algo que interage com o golpe cancela o mergulho e IMPULSIONA
     //    o player p/ cima (Player.Bounce, como a Hornet em Silksong) SEM restaurar o dash
+    //  - anti-bounce-infinito: depois do impulso, apertar/segurar ataque na SUBIDA nao
+    //    dispara novo mergulho; ele so volta a poder no apice, quando o player comeca a
+    //    cair (Speed.Y >= 0). Segurar o botao tambem nao dispara nada sozinho
     //  - anti-stall: os golpes horizontais no ar sao limitados a UM ciclo do combo (3)
     //    por voo — depois disso apertar nao dispara e o player cai; pousar restaura
     //  - verticais NAO fazem parte do combo: golpe unico de 5 que reseta a progressao
@@ -41,6 +44,7 @@ namespace myProject
         private bool buffered;
         private bool lockedAttack;   // golpe atual trava o player?
         private int airComboLeft = 3; // golpes horizontais aereos restantes neste voo
+        private bool diveLockedUntilApex; // pos-bounce: sem novo mergulho ate comecar a cair
         private Facings comboFacing; // direcao do combo em andamento
         private AttackHitbox currentAttack;
         private Player player;
@@ -59,7 +63,12 @@ namespace myProject
                 return;
 
             if (player.OnGround())
+            {
                 airComboLeft = 3; // pousar restaura o ciclo aereo
+                diveLockedUntilApex = false;
+            }
+            else if (diveLockedUntilApex && player.Speed.Y >= 0f)
+                diveLockedUntilApex = false; // apice do bounce: comecou a cair, mergulho liberado
 
             if (Attacking)
             {
@@ -116,7 +125,14 @@ namespace myProject
             if (Input.MoveY.Value == -1)
                 dir = -Vector2.UnitY;
             else if (!player.OnGround() && Input.MoveY.Value == 1)
+            {
+                if (diveLockedUntilApex)
+                {
+                    EndAttackState();
+                    return; // na subida do bounce o mergulho nao dispara (nem outro golpe)
+                }
                 dir = Vector2.UnitY;
+            }
             else
                 dir = Vector2.UnitX * (int)player.Facing;
 
@@ -176,6 +192,7 @@ namespace myProject
                 int dashes = player.Dashes;
                 player.Bounce(player.Bottom);
                 player.Dashes = dashes;
+                diveLockedUntilApex = true; // novo mergulho so quando comecar a cair
             }
             else
                 player.Speed = -attackDir * RecoilSpeed;

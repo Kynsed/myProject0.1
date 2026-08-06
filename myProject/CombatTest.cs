@@ -41,6 +41,7 @@ namespace MonocleSmoke
             TestRanges();
             TestDive();
             TestDiveLanding();
+            TestDiveBounceRhythm();
             TestAirStall();
             TestRecoil();
 
@@ -314,6 +315,30 @@ namespace MonocleSmoke
             for (int i = 0; i < 60 && combo.Attacking; i++) Step(lvl);
             Check("Recuo: acertar com golpe horizontal empurra o player p/ tras",
                 p.X < x0, "dX=" + (p.X - x0));
+        }
+
+        private static void TestDiveBounceRhythm()
+        {
+            // anti-bounce-infinito: depois do impulso, mergulho so no apice (quando cai)
+            var (lvl, p, combo, dummy) = Boot(playerX: 60f);
+            for (int i = 0; i < 8; i++) Step(lvl, Keys.C);
+            Step(lvl, Keys.Down, Keys.A);                     // mergulho 1
+            for (int i = 0; i < 90 && combo.Attacking; i++)
+            {
+                Step(lvl, Keys.Down);
+                if (dummy.Health.Current < 30) break;         // bounce disparou
+            }
+
+            Step(lvl, Keys.Down, Keys.A);                     // aperto na SUBIDA
+            Check("Bounce: apertar na subida nao dispara novo mergulho",
+                !combo.Attacking && p.Speed.Y < 0f,
+                "Attacking=" + combo.Attacking + " Speed.Y=" + p.Speed.Y);
+
+            int g = 0;
+            while (p.Speed.Y < 0f && g++ < 90) Step(lvl);     // espera o apice
+            Step(lvl, Keys.Down, Keys.A);                     // comecou a cair: pode
+            Check("Bounce: no inicio da queda o mergulho volta a disparar",
+                combo.Attacking && combo.Diving, "Diving=" + combo.Diving);
         }
 
         private static void TestAirStall()
