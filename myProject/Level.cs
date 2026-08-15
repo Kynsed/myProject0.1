@@ -22,6 +22,10 @@ namespace myProject
         public float NextTransitionDuration = 0.65f;
         private Coroutine transition;
         public bool Transitioning => transition != null;
+        // NOTE: jogo proprio — enquanto existir uma GameCamera na cena ela e a dona da
+        // camera, e o follow fiel do Celeste (Player.Update) fica desligado. Os harnesses
+        // de paridade rodam sem GameCamera, entao continuam medindo o port.
+        public GameCamera FollowCamera;
         public Vector2 CameraOffset;
         public float CameraUpwardMaxY;
         public CameraLockModes CameraLockMode;

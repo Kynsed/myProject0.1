@@ -18,6 +18,8 @@ namespace MonocleSmoke
             if (!ok) fails++;
         }
 
+        private static bool Near(float a, float b, float tol) => Math.Abs(a - b) <= tol;
+
         public static int Run()
         {
             Console.WriteLine("== combate: combo basico de 3 estagios (headless) ==");
@@ -38,15 +40,16 @@ namespace MonocleSmoke
             TestJumpResetsGroundCombo();
             TestMovementLock();
             TestFacingReset();
-            TestAerialHover();
+            TestAerialSolto();
+            TestDoisSlashesNaQueda();
             TestDirectionalAttacks();
             TestVerticalSingle();
             TestRanges();
             TestDive();
             TestDiveLanding();
             TestDiveBounceRhythm();
-            TestAirStall();
             TestRecoil();
+            TestDashNaoEInterrompido();
 
             Console.WriteLine(fails == 0 ? "== COMBATE OK ==" : ("== " + fails + " FALHA(S) =="));
             return fails;
@@ -275,26 +278,21 @@ namespace MonocleSmoke
                 combo.Attacking && combo.Stage == 0, "Stage=" + combo.Stage);
         }
 
-        private static void TestAerialHover()
+        private static void TestAerialSolto()
         {
-            var (lvl, p, combo, dummy) = Boot();
+            // no ar o golpe e um slash solto: nao trava o player, que continua caindo
+            var (lvl, p, combo, dummy) = Boot(withDummy: false);
 
-            Step(lvl, Keys.C);                       // pula
-            for (int i = 0; i < 8; i++) Step(lvl);   // subindo
-            Step(lvl, Keys.A);                       // ataque aereo
+            for (int i = 0; i < 14; i++) Step(lvl, Keys.C);       // pulo maximo (var jump = 12f)
+            for (int i = 0; i < 30 && p.Speed.Y < 0f; i++) Step(lvl);   // sobe ate o apice
             float y0 = p.Y;
-            bool moved = false;
-            for (int i = 0; i < 60 && combo.Attacking; i++)
-            {
-                Step(lvl);
-                if (p.Y != y0) moved = true;
-            }
-            Check("Aereo: paira durante o golpe (Y constante, sem queda)", !moved,
-                "Y=" + p.Y + " y0=" + y0);
-
-            float yEnd = p.Y;
-            for (int i = 0; i < 12; i++) Step(lvl);  // intervalo: gravidade volta
-            Check("Aereo: cai no intervalo entre golpes", p.Y > yEnd, "dY=" + (p.Y - yEnd));
+            Step(lvl, Keys.A);                       // slash aereo
+            bool locked = p.StateMachine.State == 11;
+            for (int i = 0; i < 60 && combo.Attacking; i++) Step(lvl);
+            Check("Aereo: o slash nao trava o player (segue no estado Normal)",
+                !locked && p.StateMachine.State == 0, "state=" + p.StateMachine.State);
+            Check("Aereo: o player continua caindo durante o slash", p.Y > y0,
+                "dY=" + (p.Y - y0));
         }
 
         private static void TestDirectionalAttacks()
@@ -398,6 +396,55 @@ namespace MonocleSmoke
                 "ground=" + p.OnGround() + " state=" + p.StateMachine.State);
         }
 
+        private static void TestDashNaoEInterrompido()
+        {
+            // ataque nenhum pode cortar o dash aereo. O caso ruim era o aperto BUFFERIZADO:
+            // slash aereo -> dash no meio do slash -> apertar baixo+ataque; ao terminar o
+            // slash o buffer disparava o mergulho e matava o dash (state 2 -> 11, Speed zerado)
+            // caso direto: apertar baixo+ataque no meio do dash, sem golpe em andamento
+            var (l0, p0, c0, _) = Boot(withDummy: false);
+            for (int i = 0; i < 14; i++) Step(l0, Keys.C);
+            for (int i = 0; i < 30 && p0.Speed.Y < 0f; i++) Step(l0);
+            Step(l0, Keys.Right, Keys.X);                              // dash aereo
+            bool cortou = false;
+            for (int i = 0; i < 12 && p0.StateMachine.State == 2; i++)
+            {
+                Step(l0, (i == 2) ? new[] { Keys.Down, Keys.A } : new[] { Keys.Down });
+                if (c0.Diving || p0.StateMachine.State == 11) cortou = true;
+            }
+            Check("Dash: baixo+ataque no meio do dash nao corta o dash", !cortou,
+                "dive=" + c0.Diving + " state=" + p0.StateMachine.State);
+
+            var (lvl, p, combo, _) = Boot(withDummy: false);
+            for (int i = 0; i < 14; i++) Step(lvl, Keys.C);            // pulo maximo
+            for (int i = 0; i < 30 && p.Speed.Y < 0f; i++) Step(lvl);  // ate o apice
+            Step(lvl, Keys.A);                                         // slash aereo
+            Step(lvl, Keys.Right, Keys.X);                             // dash durante o slash
+
+            bool dashInteiro = true, mergulhou = false;
+            float peak = 0f;
+            int frames = 0;
+            for (int i = 0; i < 12 && p.StateMachine.State == 2; i++)  // enquanto o dash roda
+            {
+                Step(lvl, (i == 1) ? new[] { Keys.Down, Keys.A } : new[] { Keys.Down });
+                frames++;
+                peak = Math.Max(peak, p.Speed.X);
+                if (combo.Diving) mergulhou = true;
+                if (p.StateMachine.State == 11) dashInteiro = false;
+            }
+            Check("Dash: baixo+ataque bufferizado nao vira mergulho durante o dash",
+                !mergulhou && dashInteiro, "dive=" + mergulhou + " state=" + p.StateMachine.State);
+            Check("Dash: mantem a velocidade ate o fim (240 por ~11 frames)",
+                Near(peak, 240f, 1f) && frames >= 9, "peak=" + peak + " frames=" + frames);
+
+            // acabou o dash: o mergulho volta a sair normalmente
+            Step(lvl);                                                 // frame neutro
+            Step(lvl, Keys.Down, Keys.A);
+            Check("Dash: acabado o dash, o mergulho dispara normalmente",
+                combo.Diving && p.StateMachine.State == 11,
+                "dive=" + combo.Diving + " state=" + p.StateMachine.State);
+        }
+
         private static void TestRecoil()
         {
             // horizontal: acertar o boneco desliza o player p/ tras (recuo com decaimento)
@@ -433,41 +480,34 @@ namespace MonocleSmoke
                 combo.Attacking && combo.Diving, "Diving=" + combo.Diving);
         }
 
-        private static void TestAirStall()
+        private static void TestDoisSlashesNaQueda()
         {
-            // anti-stall: mashar ataque no ar da no maximo 1 ciclo do combo (3 golpes)
-            // pairando; depois os apertos nao disparam e o player cai ate pousar
+            // requisito de design: do apice do pulo maximo ate o chao cabem DOIS slashes
+            // (medida da queda: 18 frames; cada slash gasta ~8)
             var (lvl, p, combo, _) = Boot(withDummy: false);
-            for (int i = 0; i < 8; i++) Step(lvl, Keys.C);   // pulo alto
-            Step(lvl, Keys.A);                               // golpe aereo 1
-            int guard = 0;
-            while (combo.Attacking && guard++ < 120)         // masha p/ encadear 2 e 3
+            for (int i = 0; i < 14; i++) Step(lvl, Keys.C);              // pulo maximo (var jump = 12f)
+            for (int i = 0; i < 30 && p.Speed.Y < 0f; i++) Step(lvl);    // sobe ate o apice
+
+            // conta hitboxes nascidas: 1 por slash, e so nascem se o golpe passou a
+            // anticipacao (encadear bufferizado nao deixa Attacking piscar entre os dois)
+            int slashes = 0, queda = 0;
+            AttackHitbox last = null;
+            for (int i = 0; i < 120 && !p.OnGround(); i++)   // masha do apice ate pousar
             {
-                if (guard % 2 == 0) Step(lvl); else Step(lvl, Keys.A);
+                Step(lvl, (i % 2 == 0) ? new[] { Keys.A } : new Keys[0]);
+                queda++;
+                AttackHitbox atk = lvl.Entities.FindFirst<AttackHitbox>();
+                if (atk != null && atk != last) { slashes++; last = atk; }
             }
-            Check("Anti-stall: apos 1 ciclo aereo o combo para (ainda no ar)",
-                !combo.Attacking && !p.OnGround(), "ar=" + !p.OnGround() + " guard=" + guard);
+            Check("Aereo: cabem 2 slashes do apice ate o chao", slashes >= 2,
+                "slashes=" + slashes + " queda=" + queda + "f");
+            Check("Aereo: o slash nao encadeia combo (sempre estagio 1)",
+                combo.Stage == 0 && combo.NextStage == 0,
+                "Stage=" + combo.Stage + " NextStage=" + combo.NextStage);
 
-            Step(lvl, Keys.A);                               // aperto extra no ar
-            Check("Anti-stall: aperto extra no ar nao dispara",
-                !combo.Attacking, "Attacking=" + combo.Attacking);
-
-            bool landed = false;
-            for (int i = 0; i < 300 && !landed; i++)         // mashando enquanto cai
-            {
-                if (i % 2 == 0) Step(lvl, Keys.A); else Step(lvl);
-                landed = p.OnGround();
-            }
-            Check("Anti-stall: mashando no ar o player desce e pousa",
-                landed, "landed=" + landed);
-
-            // no chao: passada a recuperacao do finisher, o ataque volta a sair
-            int r = 0;
-            while (combo.Recovering && r++ < 60) Step(lvl);
-            Step(lvl);                // frame neutro: Pressed so dispara na transicao
-            Step(lvl, Keys.A);
-            Check("Anti-stall: pousar restaura o ciclo aereo (ataque volta)",
-                combo.Attacking, "Attacking=" + combo.Attacking);
+            // mashar no ar nao sustenta o voo: o player pousa do mesmo jeito
+            Check("Aereo: mashando no ar o player desce e pousa", p.OnGround(),
+                "ground=" + p.OnGround());
         }
     }
 }

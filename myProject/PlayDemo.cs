@@ -75,6 +75,7 @@ namespace MonocleSmoke
             Player player = new Player(new Vector2(60f, 210f), PlayerSpriteMode.Madeline);
             player.Add(new MeleeCombo()); // combate (jogo proprio)
             Add(player);
+            Add(new GameCamera());        // camera do metroidvania (jogo proprio)
         }
 
         // Como o Level.LoadLevel do Celeste: camera nasce no alvo, sem swoosh inicial.
@@ -83,7 +84,11 @@ namespace MonocleSmoke
             base.Begin();
             Entities.UpdateLists();
             Player p = Tracker.GetEntity<Player>();
-            if (p != null)
+            if (p == null)
+                return;
+            if (FollowCamera != null)
+                FollowCamera.SnapToPlayer(p);
+            else
                 Camera.Position = p.CameraTarget;
         }
     }
@@ -142,11 +147,12 @@ namespace MonocleSmoke
             base.Initialize();
             Input.Initialize();
             InitTags();
+            Abilities.ResetToDefaults();   // jogo: dash so horizontal, sem escalar parede
             // Engine.Scene so troca no fim do Update: guarda a referencia p/ preparar o shot
             var built = new PlayScene();
             Scene = built;
             pendingShotScene = ScreenshotPath != null ? built : null;
-            Console.WriteLine("Setas: mover | C: pular | X: dash | Z/V: agarrar | A: atacar (combo x3)");
+            Console.WriteLine("Setas: mover | C: pular | X: dash (so horizontal) | Z/V: agarrar (nao escala) | A: atacar (combo x3 no chao, slash solto no ar)");
             Console.WriteLine("F1: inspector (clique numa entidade) | ESC: sair");
         }
 

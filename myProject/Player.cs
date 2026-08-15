@@ -801,7 +801,9 @@ namespace myProject
 				}
 			}
 			this.StrawberriesBlocked = base.CollideCheck<BlockField>();
-			if (this.InControl || this.ForceCameraUpdate)
+			// NOTE (jogo proprio): com uma GameCamera na cena quem manda na camera e ela;
+			// este follow fiel do Celeste segue valendo quando ela nao existe (--parity).
+			if ((this.InControl || this.ForceCameraUpdate) && this.level.FollowCamera == null)
 			{
 				if (this.StateMachine.State == 18)
 				{
@@ -2726,6 +2728,14 @@ namespace myProject
 
 		public bool ClimbCheck(int dir, int yAdd = 0)
 		{
+			// NOTE (poda de movimento): agarrar parede virou upgrade (Abilities.WallClimb).
+			// Todo caminho p/ o estado Climb (1) passa por aqui, entao um portao so basta.
+			// Wall slide (ClimbBoundsCheck), wall jump (WallJumpCheck) e pegar Holdable
+			// nao passam por aqui e continuam valendo.
+			if (!Abilities.WallClimb)
+			{
+				return false;
+			}
 			return this.ClimbBoundsCheck(dir) && !ClimbBlocker.Check(base.Scene, this, this.Position + Vector2.UnitY * (float)yAdd + Vector2.UnitX * 2f * (float)this.Facing) && base.CollideCheck<Solid>(this.Position + new Vector2((float)(dir * 2), (float)yAdd));
 		}
 
@@ -2993,7 +3003,10 @@ namespace myProject
 					Water water;
 					if (canUnDuck && this.WallJumpCheck(1))
 					{
-						if (this.Facing == Facings.Right && Input.GrabCheck && !SaveData.Instance.Assists.NoGrabbing && this.Stamina > 0f && this.Holding == null && !ClimbBlocker.Check(base.Scene, this, this.Position + Vector2.UnitX * 3f))
+						// NOTE (poda de movimento): o climb jump (pulo reto colado na parede) sobe
+						// parede acima sem precisar do estado Climb, entao ele tambem fica atras
+						// de Abilities.WallClimb. Sem o upgrade, cai no WallJump normal.
+						if (Abilities.WallClimb && this.Facing == Facings.Right && Input.GrabCheck && !SaveData.Instance.Assists.NoGrabbing && this.Stamina > 0f && this.Holding == null && !ClimbBlocker.Check(base.Scene, this, this.Position + Vector2.UnitX * 3f))
 						{
 							this.ClimbJump();
 						}
@@ -3008,7 +3021,7 @@ namespace myProject
 					}
 					else if (canUnDuck && this.WallJumpCheck(-1))
 					{
-						if (this.Facing == Facings.Left && Input.GrabCheck && !SaveData.Instance.Assists.NoGrabbing && this.Stamina > 0f && this.Holding == null && !ClimbBlocker.Check(base.Scene, this, this.Position + Vector2.UnitX * -3f))
+						if (Abilities.WallClimb && this.Facing == Facings.Left && Input.GrabCheck && !SaveData.Instance.Assists.NoGrabbing && this.Stamina > 0f && this.Holding == null && !ClimbBlocker.Check(base.Scene, this, this.Position + Vector2.UnitX * -3f))
 						{
 							this.ClimbJump();
 						}
@@ -3595,6 +3608,7 @@ namespace myProject
 			{
 				Vector2 vector = Input.GetAimVector(Facings.Right);
 				vector = this.CorrectDashPrecision(vector);
+				vector = Abilities.ConstrainDash(vector, this.Facing);   // NOTE (poda): curvar o dash tambem respeita o portao
 				float num = Vector2.Dot(vector, this.Speed.SafeNormalize());
 				if (num >= -0.1f && num < 0.99f)
 				{
@@ -3656,7 +3670,7 @@ namespace myProject
 			{
 				if (this.WallJumpCheck(1))
 				{
-					if (this.Facing == Facings.Right && Input.GrabCheck && this.Stamina > 0f && this.Holding == null && !ClimbBlocker.Check(base.Scene, this, this.Position + Vector2.UnitX * 3f))
+					if (Abilities.WallClimb && this.Facing == Facings.Right && Input.GrabCheck && this.Stamina > 0f && this.Holding == null && !ClimbBlocker.Check(base.Scene, this, this.Position + Vector2.UnitX * 3f))
 					{
 						this.ClimbJump();
 					}
@@ -3668,7 +3682,7 @@ namespace myProject
 				}
 				if (this.WallJumpCheck(-1))
 				{
-					if (this.Facing == Facings.Left && Input.GrabCheck && this.Stamina > 0f && this.Holding == null && !ClimbBlocker.Check(base.Scene, this, this.Position + Vector2.UnitX * -3f))
+					if (Abilities.WallClimb && this.Facing == Facings.Left && Input.GrabCheck && this.Stamina > 0f && this.Holding == null && !ClimbBlocker.Check(base.Scene, this, this.Position + Vector2.UnitX * -3f))
 					{
 						this.ClimbJump();
 					}
@@ -3736,6 +3750,11 @@ namespace myProject
 				vector = this.OverrideDashDirection.Value;
 			}
 			vector = this.CorrectDashPrecision(vector);
+			// NOTE (poda de movimento): so dash horizontal. Diagonal e vertical viram upgrade
+			// (Abilities); com eles desligados o dash p/ cima/diagonal cai p/ o lado do input.
+			// Consequencia: sem diagonal p/ baixo nao ha hyper dash, e sem dash p/ cima nao ha
+			// super wall jump — os dois voltam junto com o upgrade correspondente.
+			vector = Abilities.ConstrainDash(vector, this.Facing);
 			Vector2 vector2 = vector * 240f;
 			if (Math.Sign(this.beforeDashSpeed.X) == Math.Sign(vector2.X) && Math.Abs(this.beforeDashSpeed.X) > Math.Abs(vector2.X))
 			{
@@ -4075,7 +4094,7 @@ namespace myProject
 				{
 					if (this.WallJumpCheck(1))
 					{
-						if (this.Facing == Facings.Right && Input.GrabCheck && this.Stamina > 0f && this.Holding == null && !ClimbBlocker.Check(base.Scene, this, this.Position + Vector2.UnitX * 3f))
+						if (Abilities.WallClimb && this.Facing == Facings.Right && Input.GrabCheck && this.Stamina > 0f && this.Holding == null && !ClimbBlocker.Check(base.Scene, this, this.Position + Vector2.UnitX * 3f))
 						{
 							this.ClimbJump();
 						}
@@ -4087,7 +4106,7 @@ namespace myProject
 					}
 					if (this.WallJumpCheck(-1))
 					{
-						if (this.Facing == Facings.Left && Input.GrabCheck && this.Stamina > 0f && this.Holding == null && !ClimbBlocker.Check(base.Scene, this, this.Position + Vector2.UnitX * -3f))
+						if (Abilities.WallClimb && this.Facing == Facings.Left && Input.GrabCheck && this.Stamina > 0f && this.Holding == null && !ClimbBlocker.Check(base.Scene, this, this.Position + Vector2.UnitX * -3f))
 						{
 							this.ClimbJump();
 						}
@@ -4105,8 +4124,9 @@ namespace myProject
 		private IEnumerator RedDashCoroutine()
 		{
 			yield return null;
-			this.Speed = this.CorrectDashPrecision(this.lastAim) * 240f;
-			this.gliderBoostDir = (this.DashDir = this.lastAim);
+			// NOTE (poda de movimento): o red dash (conteudo) usa o mesmo portao do dash normal
+			this.Speed = Abilities.ConstrainDash(this.CorrectDashPrecision(this.lastAim), this.Facing) * 240f;
+			this.gliderBoostDir = (this.DashDir = Abilities.ConstrainDash(this.lastAim, this.Facing));
 			base.SceneAs<Level>().DirectionalShake(this.DashDir, 0.2f);
 			if (this.DashDir.X != 0f)
 			{
@@ -4133,7 +4153,7 @@ namespace myProject
 				}
 				else if (this.WallJumpCheck(1))
 				{
-					if (this.Facing == Facings.Right && Input.GrabCheck && this.Stamina > 0f && this.Holding == null && !ClimbBlocker.Check(base.Scene, this, this.Position + Vector2.UnitX * 3f))
+					if (Abilities.WallClimb && this.Facing == Facings.Right && Input.GrabCheck && this.Stamina > 0f && this.Holding == null && !ClimbBlocker.Check(base.Scene, this, this.Position + Vector2.UnitX * 3f))
 					{
 						this.ClimbJump();
 					}
@@ -4144,7 +4164,7 @@ namespace myProject
 				}
 				else if (this.WallJumpCheck(-1))
 				{
-					if (this.Facing == Facings.Left && Input.GrabCheck && this.Stamina > 0f && this.Holding == null && !ClimbBlocker.Check(base.Scene, this, this.Position + Vector2.UnitX * -3f))
+					if (Abilities.WallClimb && this.Facing == Facings.Left && Input.GrabCheck && this.Stamina > 0f && this.Holding == null && !ClimbBlocker.Check(base.Scene, this, this.Position + Vector2.UnitX * -3f))
 					{
 						this.ClimbJump();
 					}

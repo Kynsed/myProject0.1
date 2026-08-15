@@ -24,6 +24,14 @@ if (mode == "--parity")
 {
     Environment.Exit(ParityTest.Run());
 }
+if (mode == "--camera-test")
+{
+    Environment.Exit(CameraTest.Run());
+}
+if (mode == "--poda-test")
+{
+    Environment.Exit(PodaTest.Run());
+}
 if (mode == "--combat-test")
 {
     Environment.Exit(CombatTest.Run());

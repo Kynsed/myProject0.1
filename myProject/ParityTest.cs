@@ -40,6 +40,9 @@ namespace MonocleSmoke
             typeof(Engine).GetProperty("DeltaTime").SetValue(null, 1f / 60f);
             // headless: Engine.Pooler so nasce no ctor do Engine; remocao de entidade precisa dele
             typeof(Engine).GetProperty("Pooler").SetValue(null, new Pooler());
+            // este harness audita a FIDELIDADE do port, nao o design do jogo: liga todo o
+            // movimento do Celeste. As podas do metroidvania sao medidas em --poda-test.
+            Abilities.EnableAll();
 
             TestMaxRun();
             TestMaxFall();

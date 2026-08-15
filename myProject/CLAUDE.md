@@ -22,13 +22,57 @@ Ao portar qualquer coisa do `celeste_source`:
 Correções de bug em relação ao original vão marcadas com `// FIX`. Hoje há `// NOTE`
 em 41 arquivos — é o rastro que torna o port auditável.
 
+### Podas de movimento (design do metroidvania)
+
+A liberdade do Celeste dissolve o gate de progressão de um metroidvania. As liberdades
+cortadas **não são apagadas**: ficam atrás de portões em [`Abilities.cs`](Abilities.cs),
+desligados por padrão e ligados depois pela progressão (upgrade de personagem).
+
+| Portão | Desligado (jogo hoje) | Ligado (upgrade) |
+|---|---|---|
+| `DashDiagonal` | dash diagonal cai p/ a horizontal; **sem hyper dash** | dash em 8 direções |
+| `DashVertical` | dash p/ cima/baixo vira dash p/ frente; **sem super wall jump** | dash vertical |
+| `WallClimb` | grab não agarra parede; **sem climb jump nem ledge hop** | escalada completa |
+
+Wall jump, wall slide e pegar `Holdable` **continuam** — não passam por `ClimbCheck`.
+`--parity` liga tudo (`Abilities.EnableAll()`): ele audita o port, não o design.
+As podas têm harness próprio (`--poda-test`), que mede portão ligado **e** desligado.
+
+### Câmera (sistema próprio)
+
+A câmera do Celeste é presa à sala e reage direto ao Player. A do metroidvania é uma
+follow camera em [`GameCamera.cs`](GameCamera.cs): zona morta, **centralização em
+movimento contínuo** (com o atraso da suavização, ~14px a 90px/s), **posição de descanso**
+deslocada para o lado que o player encara quando parado, vertical que ignora pulos curtos
+e acompanha quedas longas, olhar p/ cima/baixo segurando o direcional parado no chão,
+clamp na sala e suavização em tudo. A antecipação (look ahead) existe no código mas está
+**desligada** (`LookAheadFracX = 0`): em movimento o pedido é centralizar.
+
+**Enquadramento vertical:** o player não fica no meio da tela — os pés ficam a
+`GroundLineFrac` (78%) da altura, então o chão cai no rodapé e sobra uma faixa do que
+existe abaixo dele, abrindo o cenário acima (enquadramento de metroidvania).
+
+**Zoom:** a tela é sempre 320×180; `Zoom` decide quanto mundo cabe nela (padrão `1.35` →
+237×133, enquadramento estilo Hollow Knight). Mudar `Zoom` em runtime é uma transição, não
+um corte. Por isso os deslocamentos de enquadramento (antecipação, descanso, olhar, folga
+máxima) são **frações da meia-tela**, não pixels fixos: valem em qualquer zoom. Já a zona
+morta e as coleiras verticais são px de mundo — elas acompanham o movimento, não a tela.
+
+Enquanto existir uma `GameCamera` na cena ela é a **dona** de `Level.Camera`, e o follow
+fiel do Celeste (`Player.Update`) fica desligado por `Level.FollowCamera`. Os harnesses
+de paridade rodam **sem** `GameCamera`, então `--parity` continua medindo o port.
+A transição entre salas é do port (`Level.TransitionRoutine`, pan CubeOut): a câmera nem
+atualiza durante ela e se re-sincroniza depois, sem pulo.
+
 ## Estrutura
 
 ```
 Monocle/          Engine portada (71 arquivos). Auditada token-a-token vs o source.
-*.cs (raiz)       Classes do jogo (57). Port fiel de movimento + stubs de conteúdo.
+*.cs (raiz)       Classes do jogo (69). Port fiel de movimento + stubs de conteúdo.
 Inspector/        Ferramenta própria de inspeção em runtime (não é port).
 Content/map.txt   Mapa do demo no formato próprio (ver RoomMap.cs).
+                  Salas de 384px de altura (tela = 180): sem essa folga a câmera
+                  fica presa no clamp e não centra o player.
 ```
 
 Namespaces: `Monocle` (engine), `myProject` (jogo), `myProject.Inspector.*` (ferramenta),
@@ -45,8 +89,10 @@ Modos de execução (`dotnet run -- <modo>`):
 | Modo | O que faz |
 |---|---|
 | `--play` | Demo jogável. F1 abre o inspector; clique seleciona entidade. |
-| `--parity` | **54 asserts** de paridade de movimento vs constantes do Celeste |
-| `--combat-test` | **41 asserts** do sistema de combate |
+| `--parity` | **54 asserts** de paridade de movimento vs constantes do Celeste (roda com `Abilities.EnableAll()`) |
+| `--poda-test` | **15 asserts** das podas de movimento (dash horizontal, sem wallclimb, golpe p/ cima) |
+| `--combat-test` | **44 asserts** do sistema de combate |
+| `--camera-test` | **41 asserts** da câmera (enquadramento, zoom, descanso, olhar, limites) — inclui o mapa real |
 | `--inspector-test` | **48 asserts** de reflexão/atributos/undo do inspector |
 | `--phys-test` | Física Actor/Solid headless (8 asserts) |
 | `--player-smoke` | Player real por 180 frames, checa crash |
@@ -86,6 +132,15 @@ que a fidelidade do movimento quebrou.
 - `Engine.Scene = x` só troca a cena no fim do Update; guarde a referência local
 - `MInput.Keyboard.Pressed` só dispara na transição → em testes que "mashan" uma tecla,
   intercale um frame neutro
+- Cena com parede em `x[0,8]`: spawnar em `x=9` deixa a hitbox (8 larg, offset −4)
+  **dentro** do sólido — o `ClimbCheck` passa mas o Actor não sobe. Use `x=12` (adjacente)
+  em qualquer teste que meça movimento na parede
+
+**Level design (vocabulário do movimento portado)**
+- O pulo sobe **~19px**: degrau de **16px (2 tiles)** é o limite, e ainda é apertado —
+  a janela em que os pés passam acima da plataforma é de ~3px. Degrau confortável = 1 tile
+- Sem wallclimb, nada de paredes como caminho vertical: subida é por plataformas
+- Sala precisa de **~84px acima e abaixo** do player para a câmera centrar sem bater no clamp
 
 **Comportamentos fiéis que parecem bug em teste**
 - Player parado sobre um FlyFeather **recoleta a cada respawn** (`StartStarFly` renova o

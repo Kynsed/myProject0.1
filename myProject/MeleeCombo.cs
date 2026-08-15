@@ -11,19 +11,26 @@ namespace myProject
     //  - alcance: 1o e 2o iguais; so o 3o e ligeiramente maior
     //  - apertar de novo dentro da janela continua o combo; passar da janela reseta p/ o 1o
     //  - apertar durante um golpe fica bufferizado e dispara o proximo ao final
-    //  - horizontais e o golpe p/ cima NO CHAO travam o player (Dummy sem gravidade;
-    //    movimento/queda so nos intervalos); virar de direcao no intervalo reseta o combo,
-    //    assim como sair do chao (pulo/queda de borda) com uma sequencia iniciada no solo
-    //  - golpe p/ cima NO AR nao trava: player segue com fisica/controle normais
+    //  - o combo de 3 estagios existe SO NO CHAO, e la o golpe trava o player (Dummy sem
+    //    gravidade; movimento/queda so nos intervalos); virar de direcao no intervalo reseta
+    //    o combo, assim como sair do chao (pulo/queda de borda) com sequencia iniciada no solo
+    //  - NO AR (fora o mergulho) o golpe e um SLASH UNICO e solto: nao trava, nao encadeia
+    //    combo e o player continua caindo com fisica/controle normais. O ritmo (Air*) cabe
+    //    duas vezes na queda do pulo maximo — dois slashes do apice ate o chao
     //  - golpe p/ baixo no ar = ATAQUE DESCENDENTE (como o da Gwendolyn): mergulha reto
     //    ate pousar; acertar algo que interage com o golpe cancela o mergulho e IMPULSIONA
     //    o player p/ cima (Player.Bounce, como a Hornet em Silksong) SEM restaurar o dash
     //  - anti-bounce-infinito: depois do impulso, apertar/segurar ataque na SUBIDA nao
     //    dispara novo mergulho; ele so volta a poder no apice, quando o player comeca a
     //    cair (Speed.Y >= 0). Segurar o botao tambem nao dispara nada sozinho
-    //  - anti-stall: os golpes horizontais no ar sao limitados a UM ciclo do combo (3)
-    //    por voo — depois disso apertar nao dispara e o player cai; pousar restaura
+    //  - sem anti-stall: o slash aereo nao trava nem segura o player no ar, entao mashar
+    //    no ar nao sustenta o voo — o player cai igual
+    //  - golpe nenhum interrompe outro estado do player: durante o dash (e dream dash,
+    //    boost...) nem aperto novo nem aperto bufferizado disparam, e o recuo nao mexe no
+    //    Speed. O mergulho so sai quando o dash acaba (ver CanAct)
     //  - verticais NAO fazem parte do combo: golpe unico de 5 que reseta a progressao
+    //  - o golpe p/ cima NO CHAO tem timing proprio (Up*), o mais pesado do jogo: e golpe
+    //    unico, cobre o teto e trava o player, entao custa o compromisso
     //  - acertar com horizontais da um pequeno recuo oposto ao golpe
     public class MeleeCombo : Component
     {
@@ -36,6 +43,17 @@ namespace myProject
         public static readonly float[] Duration = { 0.20f, 0.26f, 0.32f };   // tempo total do golpe
         public static readonly float[] Windup = { 0.05f, 0.07f, 0.08f };     // antes da hitbox nascer
         public static readonly float[] ActiveTime = { 0.08f, 0.09f, 0.10f }; // hitbox ativa
+        // golpe p/ cima NO CHAO: unico, cobre o teto e trava o player — o mais pesado do
+        // jogo, no mesmo compromisso do finisher (24 frames: 9 + 7 + 8). Dano segue 5.
+        public const float UpDuration = 0.40f;
+        public const float UpWindup = 0.15f;
+        public const float UpActiveTime = 0.12f;
+        // slash aereo (fora o mergulho): unico e solto, o player continua caindo.
+        // Calibrado p/ caberem DOIS na queda do pulo maximo — do apice ao chao sao 18
+        // frames, e cada slash gasta 8 (2 de anticipacao + 4 ativos + 2 de recuperacao).
+        public const float AirDuration = 0.13f;
+        public const float AirWindup = 0.04f;
+        public const float AirActiveTime = 0.07f;
         public const float FinisherRecovery = 0.10f; // pausa apos o 3o golpe antes de atacar de novo
         public const float ComboWindow = 0.55f;   // tempo apos o fim do golpe p/ continuar o combo
         public const float RecoilSpeed = 60f;     // recuo ao acertar com golpe horizontal (px/s)
@@ -54,17 +72,23 @@ namespace myProject
         private float attackTimer;   // tempo restante do golpe atual (nao usado no mergulho)
         private float windupTimer;   // anticipacao restante ate a hitbox nascer
         private Vector2 pendingDir;  // direcao do golpe que vai nascer apos a anticipacao
+        private float pendingActive; // frames ativos do golpe que vai nascer
         private float windowTimer;   // janela p/ continuar o combo (conta fora do golpe)
         private float recoveryTimer; // pausa apos o finisher (bloqueia novo ataque)
         private float comboAnchorX;  // X do player no ultimo golpe (mede o quanto ele andou)
         private bool comboOnGround;  // a sequencia em andamento comecou no solo?
         private bool buffered;
-        private bool lockedAttack;   // golpe atual trava o player?
-        private int airComboLeft = 3; // golpes horizontais aereos restantes neste voo
+        private bool lockedAttack;   // golpe atual trava o player? (so no chao)
         private bool diveLockedUntilApex; // pos-bounce: sem novo mergulho ate comecar a cair
         private Facings comboFacing; // direcao do combo em andamento
         private AttackHitbox currentAttack;
         private Player player;
+
+        // Estados em que o combate pode mexer no player: Normal (0) e o Dummy (11), que e o
+        // estado que o proprio combo usa p/ travar/mergulhar. Em qualquer outro — dash (2),
+        // dream dash (9), boost (4), red dash (5)... — quem manda no movimento e o estado,
+        // e golpe nenhum pode interromper: nem aperto novo, nem aperto bufferizado.
+        private bool CanAct => player.StateMachine.State == 0 || player.StateMachine.State == 11;
 
         public MeleeCombo() : base(true, false) { }
 
@@ -80,16 +104,15 @@ namespace myProject
                 return;
 
             if (player.OnGround())
-            {
-                airComboLeft = 3; // pousar restaura o ciclo aereo
                 diveLockedUntilApex = false;
-            }
             else if (diveLockedUntilApex && player.Speed.Y >= 0f)
                 diveLockedUntilApex = false; // apice do bounce: comecou a cair, mergulho liberado
 
             if (Attacking)
             {
-                if (Input.Attack.Pressed)
+                // so bufferiza se o golpe seguinte puder sair; senao o aperto fica no buffer
+                // do proprio Input (0.08s) e dispara sozinho quando o player se soltar
+                if (Input.Attack.Pressed && CanAct)
                 {
                     Input.Attack.ConsumeBuffer();
                     buffered = true;
@@ -111,12 +134,12 @@ namespace myProject
                 {
                     windupTimer -= Engine.DeltaTime;
                     if (windupTimer <= 0f)
-                        SpawnHitbox(pendingDir, ActiveTime[Stage]);
+                        SpawnHitbox(pendingDir, pendingActive);
                 }
 
                 // no golpe travado, decai o recuo (unico movimento permitido);
-                // no golpe solto (p/ cima aereo) a fisica normal cuida do movimento
-                if (lockedAttack)
+                // no slash aereo a fisica normal cuida do movimento
+                if (lockedAttack && player.StateMachine.State == 11)
                 {
                     player.Speed.X = Calc.Approach(player.Speed.X, 0f, RecoilFriction * Engine.DeltaTime);
                     player.Speed.Y = Calc.Approach(player.Speed.Y, 0f, RecoilFriction * Engine.DeltaTime);
@@ -176,36 +199,32 @@ namespace myProject
             else
                 dir = Vector2.UnitX * (int)player.Facing;
 
-            // vertical = golpe unico: dano/timing do 1o estagio e nao avanca o combo
+            // o combo de 3 estagios so existe no chao; no ar (fora o mergulho) todo golpe e
+            // slash unico com o ritmo Air*, e o p/ cima no chao usa o ritmo pesado Up*.
+            // Golpe unico = dano/alcance do 1o estagio e nao avanca a progressao.
+            bool onGround = player.OnGround();
             bool vertical = dir.Y != 0f;
-            if (vertical)
+            bool dive = dir.Y > 0f;
+            bool airSlash = !onGround && !dive;
+            bool groundUp = onGround && dir.Y < 0f;
+            if (vertical || airSlash)
                 stage = 0;
-
-            // anti-stall: no ar, so um ciclo do combo horizontal por voo
-            if (!vertical && !player.OnGround())
-            {
-                if (airComboLeft <= 0)
-                {
-                    EndAttackState(); // esgotou: nao dispara e o player segue caindo
-                    return;
-                }
-                airComboLeft--;
-            }
 
             Attacking = true;
             buffered = false;
             Stage = stage;
-            attackTimer = Duration[stage];
-            NextStage = vertical ? 0 : (stage + 1) % 3; // depois do 3o golpe o combo recomeca
+            attackTimer = airSlash ? AirDuration : (groundUp ? UpDuration : Duration[stage]);
+            NextStage = (vertical || airSlash) ? 0 : (stage + 1) % 3; // depois do 3o o combo recomeca
             comboFacing = player.Facing;
             comboAnchorX = player.X;
-            comboOnGround = player.OnGround();
-            Diving = dir.Y > 0f;
+            comboOnGround = onGround;
+            Diving = dive;
 
-            // trava: horizontais e golpe p/ cima no chao. Golpe p/ cima no ar fica solto;
-            // o mergulho usa o estado Dummy p/ descer reto, sem controle, ate pousar/acertar.
+            // trava so no chao (combo horizontal e golpe p/ cima). O slash aereo fica solto:
+            // o player continua caindo com fisica/controle normais. O mergulho usa o estado
+            // Dummy p/ descer reto, sem controle, ate pousar/acertar.
             // DummyBegin reseta DummyGravity=true, entao desligar DEPOIS de setar o estado.
-            lockedAttack = dir.Y == 0f || (dir.Y < 0f && player.OnGround());
+            lockedAttack = onGround;
             if (lockedAttack || Diving)
             {
                 player.StateMachine.State = 11;
@@ -226,7 +245,8 @@ namespace myProject
             }
             else
             {
-                windupTimer = Windup[stage];
+                windupTimer = airSlash ? AirWindup : (groundUp ? UpWindup : Windup[stage]);
+                pendingActive = airSlash ? AirActiveTime : (groundUp ? UpActiveTime : ActiveTime[stage]);
                 pendingDir = dir;
             }
         }
@@ -251,8 +271,12 @@ namespace myProject
                 player.Dashes = dashes;
                 diveLockedUntilApex = true; // novo mergulho so quando comecar a cair
             }
-            else
+            else if (!CanAct)
+                return;                                      // dash e cia: o estado manda no Speed
+            else if (lockedAttack)
                 player.Speed = -attackDir * RecoilSpeed;
+            else
+                player.Speed.X = -attackDir.X * RecoilSpeed; // slash aereo: nao freia a queda
         }
 
         // encerra o golpe atual e abre a janela de combo (dispara o bufferizado, se houver)
@@ -267,10 +291,15 @@ namespace myProject
                 recoveryTimer = FinisherRecovery; // fim do combo: pausa antes do proximo
                 buffered = false;
             }
-            if (buffered)
+            // o encadeamento bufferizado tambem respeita o estado: se o player entrou num
+            // dash no meio do golpe, o aperto morre aqui em vez de cancelar o dash
+            if (buffered && CanAct)
                 Fire(NextStage);
             else
+            {
+                buffered = false;
                 EndAttackState();
+            }
         }
 
         // encerra o mergulho: remove a hitbox persistente e zera a descida
