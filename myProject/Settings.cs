@@ -18,6 +18,7 @@ namespace myProject
         public Binding Grab = new Binding();
         public Binding Talk = new Binding();
         public Binding DemoDash = new Binding();
+        public Binding Attack = new Binding(); // NOTE: jogo proprio (combate)
 
         public Binding LeftMoveOnly = new Binding();
         public Binding RightMoveOnly = new Binding();
@@ -47,6 +48,8 @@ namespace myProject
             Jump.Add(new Keys[] { Keys.C });
             Dash.Add(new Keys[] { Keys.X });
             Talk.Add(new Keys[] { Keys.X });
+            Attack.Add(new Keys[] { Keys.A }); // jogo proprio (combate)
+            Attack.Add(new Buttons[] { Buttons.X });
         }
     }
 }

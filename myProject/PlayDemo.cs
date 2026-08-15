@@ -15,6 +15,9 @@ namespace MonocleSmoke
     {
         private static readonly Camera fallback = new Camera();
 
+        // cores dos golpes do combo (1o/2o/3o)
+        private static readonly Color[] attackColors = { Color.Cyan, Color.Orange, Color.Magenta };
+
         public override void Render(Scene scene)
         {
             Camera cam = (scene is Level lvl) ? lvl.Camera : fallback;
@@ -22,8 +25,34 @@ namespace MonocleSmoke
                 DepthStencilState.None, RasterizerState.CullNone, null, cam.Matrix * Engine.ScreenMatrix);
             foreach (Entity e in scene.Entities)
             {
-                if (e.Collider == null)
+                if (e.Collider == null || !e.Visible)
                     continue;
+
+                if (e is AttackHitbox atk)
+                {
+                    // golpe: retangulo preenchido translucido + contorno, cor por estagio
+                    Color ac = attackColors[atk.Stage];
+                    Draw.Rect(atk.Collider, ac * 0.35f);
+                    atk.Collider.Render(cam, ac);
+                    continue;
+                }
+
+                if (e is TrainingDummy dummy)
+                {
+                    // boneco de treino: corpo cinza (flash branco no hit). Barra de vida so
+                    // p/ bonecos finitos — os infinitos ficariam sempre cheios.
+                    bool flash = dummy.Health.FlashTimer > 0f;
+                    Draw.Rect(dummy.Collider, flash ? Color.White : Color.DarkGray);
+                    dummy.Collider.Render(cam, flash ? Color.White : Color.Gray);
+                    if (!dummy.Health.Infinite)
+                    {
+                        float pct = MathHelper.Clamp(dummy.Health.Current / (float)dummy.Health.Max, 0f, 1f);
+                        Draw.Rect(dummy.Left - 2f, dummy.Top - 6f, dummy.Width + 4f, 3f, Color.Black * 0.6f);
+                        Draw.Rect(dummy.Left - 2f, dummy.Top - 6f, (dummy.Width + 4f) * pct, 3f, Color.LimeGreen);
+                    }
+                    continue;
+                }
+
                 Color c = (e is Player) ? Color.Red : ((e is Solid) ? Color.LightGray : Color.Yellow);
                 e.Collider.Render(cam, c);
             }
@@ -42,7 +71,9 @@ namespace MonocleSmoke
                 System.IO.Path.Combine(AppContext.BaseDirectory, "Content", "map.txt")));
             Bounds = Rooms[0];
             Session.RespawnPoint = new Vector2(60f, 210f);
-            Add(new Player(new Vector2(60f, 210f), PlayerSpriteMode.Madeline));
+            Player player = new Player(new Vector2(60f, 210f), PlayerSpriteMode.Madeline);
+            player.Add(new MeleeCombo()); // combate (jogo proprio)
+            Add(player);
         }
 
         // Como o Level.LoadLevel do Celeste: camera nasce no alvo, sem swoosh inicial.
@@ -66,7 +97,7 @@ namespace MonocleSmoke
             Input.Initialize();
             InitTags();
             Scene = new PlayScene();
-            Console.WriteLine("Setas: mover | C: pular | X: dash | Z/V: agarrar | ESC: sair");
+            Console.WriteLine("Setas: mover | C: pular | X: dash | Z/V: agarrar | A: atacar (combo x3) | ESC: sair");
         }
 
         // BitTags (Tags.Persistent etc.) devem existir antes do Scene dimensionar o TagLists.

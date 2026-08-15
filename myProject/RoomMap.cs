@@ -10,8 +10,9 @@ namespace myProject
     //   // comentario
     //   room X Y          <- canto superior-esquerdo da sala, em pixels
     //   ##########        <- fileiras de tiles; 1 char = tile 8x8
-    //   #...^....#           '#' ou '1' = solido | '.', '0' ou ' ' = vazio
+    //   #...^..D.#           '#' ou '1' = solido | '.', '0' ou ' ' = vazio
     //   ##########           '^' 'v' '<' '>' = espinho (aponta na direcao do char)
+    //                        'D' = boneco de treino (combate)
     //                     <- linha em branco (ou proximo "room") encerra a sala
     //
     // Cada sala vira: um Rectangle em Level.Rooms (transicoes/camera) + um SolidTiles
@@ -71,6 +72,8 @@ namespace myProject
                         level.Add(new Spikes(origin + new Vector2((x + 1) * TileSize, y * TileSize), TileSize, Spikes.Directions.Left));
                     else if (c == '>')
                         level.Add(new Spikes(origin + new Vector2(x * TileSize, y * TileSize), TileSize, Spikes.Directions.Right));
+                    else if (c == 'D')
+                        level.Add(new TrainingDummy(origin + new Vector2(x * TileSize + TileSize / 2f, (y + 1) * TileSize)));
                 }
             }
 
