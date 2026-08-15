@@ -28,10 +28,21 @@ if (mode == "--combat-test")
 {
     Environment.Exit(CombatTest.Run());
 }
+if (mode == "--inspector-test")
+{
+    Environment.Exit(InspectorTest.Run());
+}
 if (mode == "--play")
 {
     using var play = new PlayGame();
     play.Run();
+    return;
+}
+if (mode == "--inspector-shot")
+{
+    using var shot = new PlayGame();
+    shot.ScreenshotPath = args.Length > 1 ? args[1] : "inspector.png";
+    shot.Run();
     return;
 }
 

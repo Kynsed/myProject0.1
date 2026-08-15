@@ -67,6 +67,7 @@ namespace MonocleSmoke
             // Mundo carregado de Content/map.txt (RoomMap): 2 salas em tiles conectadas pela
             // borda x=640. Cruzar a direita dispara a transicao fiel (glide + pan + refil).
             Add(new HitboxRenderer());
+            Add(new myProject.Inspector.InspectorRenderer()); // F1 abre o inspector
             RoomMap.Load(this, System.IO.File.ReadAllLines(
                 System.IO.Path.Combine(AppContext.BaseDirectory, "Content", "map.txt")));
             Bounds = Rooms[0];
@@ -89,15 +90,64 @@ namespace MonocleSmoke
 
     public class PlayGame : Engine
     {
+        // --inspector-shot: abre o inspector, seleciona o Player, salva um PNG do
+        // backbuffer e sai. Verifica o caminho de desenho real sem automacao de janela.
+        public string ScreenshotPath;
+        private int frames;
+        private PlayScene pendingShotScene;
+
         public PlayGame() : base(320, 180, 1280, 720, "myProject", false, true) { }
+
+        protected override void Draw(GameTime gameTime)
+        {
+            // prepara o shot assim que a cena entrou em vigor e as listas foram populadas
+            if (pendingShotScene != null && Scene == pendingShotScene)
+            {
+                pendingShotScene.RendererList.UpdateLists();
+                var insp = pendingShotScene.RendererList.Renderers
+                    .Find(r => r is myProject.Inspector.InspectorRenderer)
+                    as myProject.Inspector.InspectorRenderer;
+                if (insp != null)
+                {
+                    insp.Enabled = true;
+                    var player = pendingShotScene.Tracker.GetEntity<Player>();
+                    if (player != null)
+                    {
+                        insp.Panel.Selection.Select(player);
+                        pendingShotScene = null;
+                    }
+                }
+            }
+
+            base.Draw(gameTime);
+            if (ScreenshotPath == null || ++frames < 20)
+                return;
+            var gd = GraphicsDevice;
+            int w = gd.PresentationParameters.BackBufferWidth;
+            int h = gd.PresentationParameters.BackBufferHeight;
+            var data = new Color[w * h];
+            gd.GetBackBufferData(data);
+            using (var tex = new Texture2D(gd, w, h))
+            using (var fs = System.IO.File.Create(ScreenshotPath))
+            {
+                tex.SetData(data);
+                tex.SaveAsPng(fs, w, h);
+            }
+            Console.WriteLine("screenshot: " + ScreenshotPath + " (" + w + "x" + h + ")");
+            Exit();
+        }
 
         protected override void Initialize()
         {
             base.Initialize();
             Input.Initialize();
             InitTags();
-            Scene = new PlayScene();
-            Console.WriteLine("Setas: mover | C: pular | X: dash | Z/V: agarrar | A: atacar (combo x3) | ESC: sair");
+            // Engine.Scene so troca no fim do Update: guarda a referencia p/ preparar o shot
+            var built = new PlayScene();
+            Scene = built;
+            pendingShotScene = ScreenshotPath != null ? built : null;
+            Console.WriteLine("Setas: mover | C: pular | X: dash | Z/V: agarrar | A: atacar (combo x3)");
+            Console.WriteLine("F1: inspector (clique numa entidade) | ESC: sair");
         }
 
         // BitTags (Tags.Persistent etc.) devem existir antes do Scene dimensionar o TagLists.
