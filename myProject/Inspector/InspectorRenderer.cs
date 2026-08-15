@@ -84,50 +84,69 @@ namespace myProject.Inspector
             return local;
         }
 
+        /// Marcador da entidade selecionada. Desligue se poluir a visualizacao.
+        public bool ShowSelectionMarker = true;
+
         public override void Render(Scene scene)
         {
             if (!Panel.Visible)
                 return;
             GuiFont.Load(Engine.Instance.GraphicsDevice);
 
-            // passe proprio, sem a matriz de escala do jogo
+            // 1) marcador no espaco do MUNDO (mesma matriz dos hitboxes): fica alinhado ao
+            //    pixel com o collider, em vez de flutuar por cima em coordenadas de janela
+            if (ShowSelectionMarker)
+            {
+                Camera cam = (scene is Level lvl) ? lvl.Camera : null;
+                Matrix m = cam != null ? cam.Matrix * Engine.ScreenMatrix : Engine.ScreenMatrix;
+                Draw.SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend,
+                    SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone, null, m);
+                DrawSelectionMarker();
+                Draw.SpriteBatch.End();
+            }
+
+            // 2) painel em resolucao de janela, sem a escala do jogo
             Draw.SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend,
                 SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone, null,
                 Matrix.Identity);
-
-            DrawSelectionMarker(scene);
             Panel.Render(scene, Draw.SpriteBatch, Engine.ViewWidth, Engine.ViewHeight);
-
             Draw.SpriteBatch.End();
         }
 
-        // Contorno da entidade selecionada, desenhado em coordenadas de janela.
-        private void DrawSelectionMarker(Scene scene)
+        // Cantos em "L" (estilo alca de selecao de editor) em vez de uma caixa cheia:
+        // marca a entidade sem esconder o hitbox nem o que estiver atras.
+        private void DrawSelectionMarker()
         {
             if (!(Panel.Selection.Current is Entity e) || e.Scene == null)
                 return;
 
-            var vp = Engine.Viewport;
-            float scaleX = vp.Width / (float)Engine.Width;
-            float scaleY = vp.Height / (float)Engine.Height;
-            Vector2 camOffset = (scene is Level lvl) ? lvl.Camera.Position : Vector2.Zero;
-
-            Vector2 topLeft = e.Collider != null
-                ? new Vector2(e.Collider.AbsoluteLeft, e.Collider.AbsoluteTop)
-                : e.Position - Vector2.One * 4f;
-            float w = e.Collider != null ? e.Collider.Width : 8f;
-            float h = e.Collider != null ? e.Collider.Height : 8f;
-
-            var r = new Rectangle(
-                (int)((topLeft.X - camOffset.X) * scaleX + vp.X),
-                (int)((topLeft.Y - camOffset.Y) * scaleY + vp.Y),
-                Math.Max(2, (int)(w * scaleX)), Math.Max(2, (int)(h * scaleY)));
+            float x, yTop, w, h;
+            if (e.Collider != null)
+            {
+                x = e.Collider.AbsoluteLeft;
+                yTop = e.Collider.AbsoluteTop;
+                w = e.Collider.Width;
+                h = e.Collider.Height;
+            }
+            else
+            {
+                x = e.X - 4f; yTop = e.Y - 4f; w = h = 8f;
+            }
+            // folga de 1px p/ o contorno nao cobrir a borda do proprio hitbox
+            x -= 1f; yTop -= 1f; w += 2f; h += 2f;
 
             var c = GuiStyle.Accent;
-            Draw.Rect(r.X, r.Y, r.Width, 2, c);
-            Draw.Rect(r.X, r.Bottom - 2, r.Width, 2, c);
-            Draw.Rect(r.X, r.Y, 2, r.Height, c);
-            Draw.Rect(r.Right - 2, r.Y, 2, r.Height, c);
+            float arm = Math.Max(2f, Math.Min(w, h) * 0.35f); // tamanho do "L"
+            // superior esquerdo / direito
+            Draw.Rect(x, yTop, arm, 1f, c);
+            Draw.Rect(x, yTop, 1f, arm, c);
+            Draw.Rect(x + w - arm, yTop, arm, 1f, c);
+            Draw.Rect(x + w - 1f, yTop, 1f, arm, c);
+            // inferior esquerdo / direito
+            Draw.Rect(x, yTop + h - 1f, arm, 1f, c);
+            Draw.Rect(x, yTop + h - arm, 1f, arm, c);
+            Draw.Rect(x + w - arm, yTop + h - 1f, arm, 1f, c);
+            Draw.Rect(x + w - 1f, yTop + h - arm, 1f, arm, c);
         }
     }
 }
