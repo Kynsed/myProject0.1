@@ -9,6 +9,7 @@ namespace myProject.Inspector.UI
         public static readonly Color WindowBg = new Color(56, 56, 56);
         public static readonly Color HeaderBg = new Color(62, 62, 62);
         public static readonly Color SectionBg = new Color(51, 51, 51);
+        public static readonly Color GroupBg = new Color(46, 46, 46); // bloco tematico
         public static readonly Color RowAlt = new Color(60, 60, 60);
         public static readonly Color Border = new Color(35, 35, 35);
         public static readonly Color Separator = new Color(74, 74, 74);

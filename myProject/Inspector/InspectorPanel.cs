@@ -144,7 +144,7 @@ namespace myProject.Inspector
 
             int w = Gui.ButtonWidth("Expand");
             if (Gui.Button(new Rectangle(bx, by, w, bh), "Expand"))
-                collapsed.Clear(); // secoes; aninhados abrem sob demanda (evita ciclos)
+                ExpandAll(); // secoes + blocos (objetos aninhados abrem sob demanda: ciclos)
             bx += w + gap;
 
             w = Gui.ButtonWidth("Collapse");
@@ -265,9 +265,39 @@ namespace myProject.Inspector
                     new Rectangle(content.X, y, content.Width, GuiStyle.RowHeight), GuiStyle.TextDim);
                 return y + GuiStyle.RowHeight;
             }
-            foreach (var m in type.Members)
-                y = DrawMemberRow(content, y, target, m, key + "/" + m.Name, 1);
+
+            // um bloco por categoria (Transform, Movimento, Colisao, ...)
+            foreach (var group in type.Groups)
+                y = DrawGroup(content, y, target, group, key);
             return y + 2;
+        }
+
+        // Bloco tematico dentro de uma secao: cabecalho proprio, recolhivel, com a
+        // contagem de campos a direita.
+        private int DrawGroup(Rectangle content, int y, object target, MemberGroup group, string sectionKey)
+        {
+            // Blocos comecam RECOLHIDOS: com ~90 campos em 7 blocos, abrir tudo por padrao
+            // enterraria a estrutura. O cabecalho ja mostra nome + contagem.
+            string gkey = sectionKey + "#" + group.Name;
+            bool open = expanded.Contains(gkey);
+
+            var header = new Rectangle(content.X + GuiStyle.Indent, y,
+                content.Width - GuiStyle.Indent, GuiStyle.RowHeight);
+            if (Gui.Foldout(header, open, group.Name, GuiStyle.GroupBg))
+            {
+                if (open) expanded.Remove(gkey); else expanded.Add(gkey);
+                open = !open;
+            }
+            string count = group.Members.Length.ToString();
+            Gui.TextIn(count, header.Right - GuiStyle.Padding - Gui.MeasureText(count), header,
+                GuiStyle.TextDim);
+            y = header.Bottom;
+            if (!open)
+                return y;
+
+            foreach (var m in group.Members)
+                y = DrawMemberRow(content, y, target, m, sectionKey + "/" + m.Name, 2);
+            return y;
         }
 
         private int DrawMemberRow(Rectangle content, int y, object target, InspectedMember member,
@@ -283,14 +313,8 @@ namespace myProject.Inspector
             string path, int indent, bool recordUndo, out bool changedOut)
         {
             changedOut = false;
-            if (member.Header != null)
-            {
-                Gui.TextIn(member.Header, content.X + GuiStyle.Padding,
-                    new Rectangle(content.X, y, content.Width, GuiStyle.RowHeight), GuiStyle.TextHeader);
-                Gui.Rect(new Rectangle(content.X + GuiStyle.Padding, y + GuiStyle.RowHeight - 2,
-                    content.Width - GuiStyle.Padding * 2, GuiStyle.Scale), GuiStyle.Separator);
-                y += GuiStyle.RowHeight;
-            }
+            // NOTE: [Header] nao e mais desenhado inline — ele define o bloco (ver BuildGroups),
+            // e o cabecalho do bloco ja mostra o texto.
 
             object value = member.GetValue(target);
             Type vt = member.ValueType;
@@ -449,10 +473,29 @@ namespace myProject.Inspector
 
         private void CollapseAll()
         {
-            collapsed.Add("self");
-            if (Selection.Current is Entity e)
+            ForEachSection((target, key) => collapsed.Add(key));
+            expanded.Clear(); // blocos e aninhados voltam ao estado recolhido
+        }
+
+        private void ExpandAll()
+        {
+            collapsed.Clear();
+            ForEachSection((target, key) =>
+            {
+                foreach (var g in TypeCache.Get(target.GetType()).Groups)
+                    expanded.Add(key + "#" + g.Name);
+            });
+        }
+
+        private void ForEachSection(Action<object, string> action)
+        {
+            object sel = Selection.Current;
+            if (sel == null)
+                return;
+            action(sel, "self");
+            if (sel is Entity e)
                 foreach (Component c in e.Components)
-                    collapsed.Add("c" + c.GetHashCode());
+                    action(c, "c" + c.GetHashCode());
         }
 
         private void Notify(string msg)

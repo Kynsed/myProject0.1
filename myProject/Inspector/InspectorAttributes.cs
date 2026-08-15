@@ -41,4 +41,14 @@ namespace myProject.Inspector
     /// Mostra o membro sem permitir edicao.
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = true)]
     public sealed class ReadOnlyAttribute : Attribute { }
+
+    /// Coloca o membro num bloco nomeado do inspector. Tem prioridade sobre [Header]
+    /// e sobre a classificacao automatica.
+    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = true)]
+    public sealed class InspectorGroupAttribute : Attribute
+    {
+        public readonly string Name;
+        public readonly int Order; // menor aparece antes; empate resolve por declaracao
+        public InspectorGroupAttribute(string name, int order = 0) { Name = name; Order = order; }
+    }
 }

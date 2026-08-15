@@ -60,6 +60,8 @@ namespace MonocleSmoke
             TestUndoRedo();
             TestSelectionBaseline();
             TestLabels();
+            TestGrouping();
+            TestGroupingOnPortedCode();
 
             Console.WriteLine(fails == 0 ? "== INSPECTOR OK ==" : ("== " + fails + " FALHA(S) =="));
             return fails;
@@ -221,6 +223,104 @@ namespace MonocleSmoke
             fired = false;
             sel.Select(new Dummy());
             Check("Selecionar outro objeto dispara o evento", fired, "fired=" + fired);
+        }
+
+        // Alvo com blocos autorais explicitos.
+        private class Grouped
+        {
+            [InspectorGroup("Combate", 1)] public int Damage = 5;
+            [InspectorGroup("Vida", 0)] public int Hp = 30;
+            [Header("Audio")] public float Volume = 1f;
+            public float Pitch = 1f;              // herda o bloco do [Header] acima
+            [InspectorGroup("Combate", 1)] public float Range = 20f;
+        }
+
+        private static MemberGroup FindGroup(InspectedType t, string name)
+            => Array.Find(t.Groups, g => g.Name == name);
+
+        private static void TestGrouping()
+        {
+            var t = TypeCache.Get(typeof(Grouped));
+
+            Check("Blocos autorais sao criados",
+                FindGroup(t, "Vida") != null && FindGroup(t, "Combate") != null
+                    && FindGroup(t, "Audio") != null,
+                "blocos=" + string.Join(",", Array.ConvertAll(t.Groups, g => g.Name)));
+
+            Check("[InspectorGroup] agrupa membros dispersos",
+                FindGroup(t, "Combate").Members.Length == 2,
+                "Combate=" + FindGroup(t, "Combate").Members.Length);
+
+            Check("[Header] inicia bloco que os seguintes herdam",
+                FindGroup(t, "Audio").Members.Length == 2,
+                "Audio=" + FindGroup(t, "Audio").Members.Length);
+
+            Check("Ordem explicita respeitada (Vida antes de Combate)",
+                Array.IndexOf(t.Groups, FindGroup(t, "Vida"))
+                    < Array.IndexOf(t.Groups, FindGroup(t, "Combate")),
+                "ordem=" + string.Join(",", Array.ConvertAll(t.Groups, g => g.Name)));
+
+            int total = 0;
+            foreach (var g in t.Groups) total += g.Members.Length;
+            Check("Todo membro cai em exatamente um bloco", total == t.Members.Length,
+                "soma=" + total + " membros=" + t.Members.Length);
+        }
+
+        private static void TestGroupingOnPortedCode()
+        {
+            // o Player portado nao tem anotacoes: a heuristica e quem organiza
+            var t = TypeCache.Get(typeof(Player));
+
+            var transform = FindGroup(t, MemberClassifier.Transform);
+            var movement = FindGroup(t, MemberClassifier.Movement);
+            Check("Player: bloco Transform existe e contem Position/X/Y",
+                transform != null
+                    && Array.Exists(transform.Members, m => m.Name == "Position")
+                    && Array.Exists(transform.Members, m => m.Name == "X"),
+                transform == null ? "null" : "n=" + transform.Members.Length);
+
+            Check("Player: bloco Movimento captura Speed e Dashes",
+                movement != null
+                    && Array.Exists(movement.Members, m => m.Name == "Speed")
+                    && Array.Exists(movement.Members, m => m.Name == "Dashes"),
+                movement == null ? "null" : "n=" + movement.Members.Length);
+
+            Check("Player: Collidable vai p/ Colisao (nao Movimento)",
+                MemberClassifier.Classify("Collidable", typeof(bool)) == MemberClassifier.Collision,
+                MemberClassifier.Classify("Collidable", typeof(bool)));
+
+            Check("Referencias: Scene vai p/ o bloco de referencias",
+                MemberClassifier.Classify("Scene", typeof(Scene)) == MemberClassifier.References,
+                MemberClassifier.Classify("Scene", typeof(Scene)));
+
+            Check("Player: bloco Camera agrupa os campos de camera",
+                FindGroup(t, MemberClassifier.Camera) != null
+                    && Array.Exists(FindGroup(t, MemberClassifier.Camera).Members,
+                        m => m.Name == "CameraTarget"),
+                FindGroup(t, MemberClassifier.Camera) == null ? "null"
+                    : "n=" + FindGroup(t, MemberClassifier.Camera).Members.Length);
+
+            // "ride" casaria dentro de "override": tokens devem ser especificos
+            Check("Classificador nao confunde 'override' com 'ride'",
+                MemberClassifier.Classify("OverrideDashDirection", typeof(Vector2)) == MemberClassifier.Movement
+                    && MemberClassifier.Classify("OverrideHairColor", typeof(Color)) == MemberClassifier.Visual,
+                MemberClassifier.Classify("OverrideDashDirection", typeof(Vector2))
+                    + "/" + MemberClassifier.Classify("OverrideHairColor", typeof(Color)));
+
+            Check("Player rende varios blocos (nao uma lista unica)",
+                t.Groups.Length >= 4, "blocos=" + t.Groups.Length);
+
+            int total = 0;
+            foreach (var g in t.Groups) total += g.Members.Length;
+            Check("Player: nenhum membro perdido no agrupamento",
+                total == t.Members.Length, "soma=" + total + " membros=" + t.Members.Length);
+
+            if (Environment.GetEnvironmentVariable("INSPECTOR_DUMP") == "1")
+            {
+                foreach (var g in t.Groups)
+                    Console.WriteLine("  [" + g.Name + "] "
+                        + string.Join(", ", Array.ConvertAll(g.Members, m => m.Name)));
+            }
         }
 
         private static void TestLabels()

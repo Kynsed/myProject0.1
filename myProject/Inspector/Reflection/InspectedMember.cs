@@ -16,6 +16,9 @@ namespace myProject.Inspector.Reflection
         public readonly string Tooltip;      // [Tooltip] — null se ausente
         public readonly RangeAttribute Range; // [Range] — null se ausente
         public readonly bool CanWrite;
+        public readonly InspectorGroupAttribute GroupAttribute; // [InspectorGroup] — null se ausente
+        /// Bloco a que o membro pertence; definido pelo TypeCache ao montar o tipo.
+        public string Group { get; internal set; }
 
         private readonly Func<object, object> getter;
         private readonly Action<object, object> setter;
@@ -37,6 +40,7 @@ namespace myProject.Inspector.Reflection
             Header = info.GetCustomAttribute<HeaderAttribute>()?.Text;
             Tooltip = info.GetCustomAttribute<TooltipAttribute>()?.Text;
             Range = info.GetCustomAttribute<RangeAttribute>();
+            GroupAttribute = info.GetCustomAttribute<InspectorGroupAttribute>();
             if (info.GetCustomAttribute<ReadOnlyAttribute>() != null)
                 CanWrite = false;
         }
