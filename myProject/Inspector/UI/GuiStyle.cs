@@ -31,13 +31,21 @@ namespace myProject.Inspector.UI
         public static readonly Color Invalid = new Color(200, 70, 70);   // valor invalido
         public static readonly Color Locked = new Color(120, 120, 120);  // somente leitura
 
-        // metricas
-        public const int RowHeight = 18;
-        public const int Padding = 6;
-        public const int Indent = 12;
-        public const int SectionHeader = 20;
-        public const int TitleBar = 24;
-        public const int Toolbar = 22;
+        // Escala da UI. A fonte e 5x7: a 1x fica ilegivel numa janela de 1280x720.
+        // Todas as metricas derivam daqui, entao mudar Scale reescala o painel inteiro.
+        public static int Scale = 2;
+
+        public static int TextHeight => GuiFont.GlyphHeight * Scale;
+        public static int RowHeight => 6 * Scale + TextHeight;      // 26 em 2x
+        public static int Padding => 3 * Scale;
+        public static int Indent => 6 * Scale;
+        public static int SectionHeader => 7 * Scale + TextHeight;
+        public static int TitleBar => 9 * Scale + TextHeight;
+        public static int Toolbar => 8 * Scale + TextHeight;
+        public static int ButtonHeight => 4 * Scale + TextHeight;
+        public static int StatusBar => 5 * Scale + TextHeight;
+        public static int CheckboxSize => 6 * Scale;
+        public static int DefaultPanelWidth => 260 * Scale;
         public const float LabelRatio = 0.42f; // fracao da largura usada pelo rotulo
     }
 }

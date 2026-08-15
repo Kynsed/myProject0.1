@@ -95,17 +95,24 @@ namespace myProject.Inspector.UI
             Rect(new Rectangle(r.Right - thickness, r.Y, thickness, r.Height), c);
         }
 
+        public int TextHeight => GuiStyle.TextHeight;
+        public int MeasureText(string s) => GuiFont.Measure(s, GuiStyle.Scale);
+
         public void Text(string s, int x, int y, Color c, int maxWidth = int.MaxValue)
         {
-            if (y + GuiFont.GlyphHeight < clip.Top || y > clip.Bottom)
+            if (y + TextHeight < clip.Top || y > clip.Bottom)
                 return;
             if (maxWidth != int.MaxValue)
-                s = GuiFont.Fit(s, maxWidth);
-            GuiFont.Draw(batch, s, new Vector2(x, y), c);
+                s = GuiFont.Fit(s, maxWidth, GuiStyle.Scale);
+            GuiFont.Draw(batch, s, new Vector2(x, y), c, GuiStyle.Scale);
         }
 
         public void TextRight(string s, int right, int y, Color c)
-            => Text(s, right - GuiFont.Measure(s), y, c);
+            => Text(s, right - MeasureText(s), y, c);
+
+        /// Texto centralizado verticalmente numa faixa.
+        public void TextIn(string s, int x, Rectangle row, Color c, int maxWidth = int.MaxValue)
+            => Text(s, x, row.Y + (row.Height - TextHeight) / 2, c, maxWidth);
 
         private Rectangle Clamp(Rectangle r)
         {
@@ -135,21 +142,26 @@ namespace myProject.Inspector.UI
             Color bg = !enabled ? GuiStyle.FieldDisabled : (hover ? (MouseDown ? GuiStyle.ButtonActive : GuiStyle.ButtonHover) : GuiStyle.Button);
             Rect(r, bg);
             Border(r, GuiStyle.Border);
-            int tw = GuiFont.Measure(label);
-            Text(label, r.X + (r.Width - tw) / 2, r.Y + (r.Height - GuiFont.GlyphHeight) / 2 + 1,
+            int tw = MeasureText(label);
+            TextIn(label, r.X + Math.Max(2, (r.Width - tw) / 2), r,
                 enabled ? GuiStyle.Text : GuiStyle.Locked, r.Width - 4);
             return clicked;
         }
 
+        /// Largura que um botao precisa para o rotulo caber.
+        public int ButtonWidth(string label) => MeasureText(label) + 4 * GuiStyle.Scale;
+
         public bool Checkbox(Rectangle r, bool value, bool enabled)
         {
-            var box = new Rectangle(r.X, r.Y + (r.Height - 12) / 2, 12, 12);
+            int s = GuiStyle.CheckboxSize;
+            var box = new Rectangle(r.X, r.Y + (r.Height - s) / 2, s, s);
             bool hover = enabled && Hovered(box);
             Rect(box, enabled ? (hover ? GuiStyle.FieldHover : GuiStyle.Field) : GuiStyle.FieldDisabled);
             Border(box, GuiStyle.Border);
             if (value)
             {
-                Rect(new Rectangle(box.X + 3, box.Y + 3, 6, 6),
+                int in_ = Math.Max(2, s / 4);
+                Rect(new Rectangle(box.X + in_, box.Y + in_, s - in_ * 2, s - in_ * 2),
                     enabled ? GuiStyle.Accent : GuiStyle.Locked);
             }
             return enabled && hover && MousePressed;
@@ -160,16 +172,17 @@ namespace myProject.Inspector.UI
         {
             bool hover = Hovered(r);
             Rect(r, hover ? GuiStyle.RowAlt : bg);
-            int cx = r.X + 6, cy = r.Y + r.Height / 2;
-            // triangulo desenhado com linhas de 1px (aponta p/ baixo quando aberto)
-            for (int i = 0; i < 4; i++)
+            int s = GuiStyle.Scale;
+            int cx = r.X + 3 * s, cy = r.Y + r.Height / 2;
+            // triangulo montado com faixas de 1px*escala (aponta p/ baixo quando aberto)
+            for (int i = 0; i < 4 * s; i++)
             {
                 if (open)
-                    Rect(new Rectangle(cx + i, cy - 2 + i, 7 - i * 2, 1), GuiStyle.Text);
+                    Rect(new Rectangle(cx + i, cy - 2 * s + i, 7 * s - i * 2, 1), GuiStyle.Text);
                 else
-                    Rect(new Rectangle(cx + 1 + i, cy - 3 + i, 1, 7 - i * 2), GuiStyle.Text);
+                    Rect(new Rectangle(cx + s + i, cy - 3 * s + i, 1, 7 * s - i * 2), GuiStyle.Text);
             }
-            Text(label, r.X + 18, r.Y + (r.Height - GuiFont.GlyphHeight) / 2, GuiStyle.TextHeader, r.Width - 24);
+            TextIn(label, r.X + 10 * s, r, GuiStyle.TextHeader, r.Width - 13 * s);
             return hover && MousePressed;
         }
 
@@ -195,16 +208,17 @@ namespace myProject.Inspector.UI
             Border(r, editInvalid && focused ? GuiStyle.Invalid : (focused ? GuiStyle.Accent : GuiStyle.Border));
 
             string shown = focused ? editBuffer : (current ?? string.Empty);
-            Text(shown, r.X + 4, r.Y + (r.Height - GuiFont.GlyphHeight) / 2 + 1,
-                enabled ? GuiStyle.Text : GuiStyle.Locked, r.Width - 8);
+            int pad = 2 * GuiStyle.Scale;
+            TextIn(shown, r.X + pad, r, enabled ? GuiStyle.Text : GuiStyle.Locked, r.Width - pad * 2);
 
             if (focused)
             {
                 // cursor piscante (30 frames aceso, 30 apagado)
                 if (Engine.FrameCounter / 30 % 2 == 0)
                 {
-                    int cx = r.X + 4 + GuiFont.Measure(GuiFont.Fit(shown, r.Width - 8));
-                    Rect(new Rectangle(Math.Min(cx, r.Right - 5), r.Y + 3, 1, r.Height - 6), GuiStyle.Text);
+                    int cx = r.X + pad + MeasureText(GuiFont.Fit(shown, r.Width - pad * 2, GuiStyle.Scale));
+                    Rect(new Rectangle(Math.Min(cx, r.Right - pad - 1), r.Y + 3, GuiStyle.Scale, r.Height - 6),
+                        GuiStyle.Text);
                 }
                 var kb = MInput.Keyboard;
                 if (kb.Pressed(Keys.Enter))
@@ -236,21 +250,23 @@ namespace myProject.Inspector.UI
             result = value;
             float t = max > min ? MathHelper.Clamp((value - min) / (max - min), 0f, 1f) : 0f;
 
-            var track = new Rectangle(r.X, r.Y + r.Height / 2 - 2, r.Width - 44, 4);
+            int s = GuiStyle.Scale;
+            int valueW = MeasureText("-000.00") + 4 * s;
+            var track = new Rectangle(r.X, r.Y + r.Height / 2 - s, Math.Max(20, r.Width - valueW), 2 * s);
             Rect(track, GuiStyle.Field);
             Border(track, GuiStyle.Border);
             Rect(new Rectangle(track.X, track.Y, (int)(track.Width * t), track.Height),
                 enabled ? GuiStyle.Accent : GuiStyle.Locked);
 
             int hx = track.X + (int)(track.Width * t);
-            var knob = new Rectangle(hx - 3, r.Y + 2, 7, r.Height - 4);
+            var knob = new Rectangle(hx - 2 * s, r.Y + 2, 4 * s, r.Height - 4);
             bool hover = enabled && (Hovered(knob) || Hovered(track));
             Rect(knob, enabled ? (hover ? GuiStyle.ButtonHover : GuiStyle.Button) : GuiStyle.FieldDisabled);
             Border(knob, GuiStyle.Border);
 
             // valor numerico a direita
-            TextRight(FormatFloat(value), r.Right, r.Y + (r.Height - GuiFont.GlyphHeight) / 2 + 1,
-                enabled ? GuiStyle.TextDim : GuiStyle.Locked);
+            TextIn(FormatFloat(value), track.Right + 2 * s, r,
+                enabled ? GuiStyle.TextDim : GuiStyle.Locked, valueW);
 
             if (enabled && hover && MousePressed)
                 activeId = id;

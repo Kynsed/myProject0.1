@@ -34,6 +34,11 @@ namespace myProject.Inspector
                 if (!Panel.Visible)
                     Panel.Gui.ClearFocus();
             }
+
+            // O MonoGame esconde o cursor por padrao (IsMouseVisible = false):
+            // sem isso nao da p/ mirar nos campos nem clicar nas entidades.
+            if (Engine.Instance != null)
+                Engine.Instance.IsMouseVisible = Panel.Visible;
             if (!Panel.Visible)
                 return;
 

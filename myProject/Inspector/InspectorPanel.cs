@@ -17,7 +17,7 @@ namespace myProject.Inspector
         public readonly DrawerRegistry Drawers;
         public readonly Gui Gui = new Gui();
 
-        public int Width = 380;
+        public int Width = GuiStyle.DefaultPanelWidth;
         public bool Visible;
 
         private const int MaxDepth = 4; // profundidade maxima de objetos aninhados
@@ -93,7 +93,7 @@ namespace myProject.Inspector
             y = DrawTitleBar(panel, y);
             y = DrawToolbar(panel, y);
 
-            var content = new Rectangle(panel.X, y, panel.Width, screenH - y - 18);
+            var content = new Rectangle(panel.X, y, panel.Width, screenH - y - GuiStyle.StatusBar);
             if (Gui.WantsMouse && Gui.WheelDelta != 0)
                 scroll = Math.Max(0, scroll - Gui.WheelDelta / 4);
             int maxScroll = Math.Max(0, contentHeight - content.Height);
@@ -121,13 +121,14 @@ namespace myProject.Inspector
             object sel = Selection.Current;
             // a fonte bitmap cobre so ASCII imprimivel: nada de acento/traco longo aqui
             string title = sel == null ? "Inspector - nada selecionado" : sel.GetType().Name;
-            Gui.Text(title, bar.X + GuiStyle.Padding, bar.Y + 8, GuiStyle.TextHeader, bar.Width - 60);
+            string pos = sel is Entity e
+                ? "(" + Gui.FormatFloat(e.X) + ", " + Gui.FormatFloat(e.Y) + ")" : null;
+            int posW = pos != null ? Gui.MeasureText(pos) + GuiStyle.Padding : 0;
 
-            if (sel is Entity e)
-            {
-                string pos = "(" + Gui.FormatFloat(e.X) + ", " + Gui.FormatFloat(e.Y) + ")";
-                Gui.TextRight(pos, bar.Right - GuiStyle.Padding, bar.Y + 8, GuiStyle.TextDim);
-            }
+            Gui.TextIn(title, bar.X + GuiStyle.Padding, bar, GuiStyle.TextHeader,
+                bar.Width - GuiStyle.Padding * 2 - posW);
+            if (pos != null)
+                Gui.TextIn(pos, bar.Right - GuiStyle.Padding - Gui.MeasureText(pos), bar, GuiStyle.TextDim);
             return bar.Bottom;
         }
 
@@ -137,27 +138,39 @@ namespace myProject.Inspector
             Gui.Rect(bar, GuiStyle.SectionBg);
             Gui.Rect(new Rectangle(bar.X, bar.Bottom - 1, bar.Width, 1), GuiStyle.Border);
 
-            int bh = 16, bx = bar.X + GuiStyle.Padding, by = bar.Y + 3;
-            if (Gui.Button(new Rectangle(bx, by, 44, bh), "Expand"))
+            // larguras derivadas do texto: a barra se ajusta a qualquer escala de UI
+            int bh = GuiStyle.ButtonHeight, gap = GuiStyle.Scale;
+            int bx = bar.X + GuiStyle.Padding, by = bar.Y + (bar.Height - bh) / 2;
+
+            int w = Gui.ButtonWidth("Expand");
+            if (Gui.Button(new Rectangle(bx, by, w, bh), "Expand"))
                 collapsed.Clear(); // secoes; aninhados abrem sob demanda (evita ciclos)
-            bx += 47;
-            if (Gui.Button(new Rectangle(bx, by, 52, bh), "Collapse"))
+            bx += w + gap;
+
+            w = Gui.ButtonWidth("Collapse");
+            if (Gui.Button(new Rectangle(bx, by, w, bh), "Collapse"))
             {
                 CollapseAll();
                 expanded.Clear();
             }
-            bx += 55;
-            if (Gui.Button(new Rectangle(bx, by, 48, bh), "Refresh"))
+            bx += w + gap;
+
+            w = Gui.ButtonWidth("Refresh");
+            if (Gui.Button(new Rectangle(bx, by, w, bh), "Refresh"))
             {
                 TypeCache.Clear();
                 Selection.CaptureBaseline();
                 Notify("Metadados recarregados");
             }
-            bx += 51;
-            if (Gui.Button(new Rectangle(bx, by, 34, bh), "Undo", Undo.CanUndo))
+            bx += w + gap;
+
+            w = Gui.ButtonWidth("Undo");
+            if (Gui.Button(new Rectangle(bx, by, w, bh), "Undo", Undo.CanUndo))
                 Notify(Undo.Undo() ? "Undo" : null);
-            bx += 37;
-            if (Gui.Button(new Rectangle(bx, by, 34, bh), "Redo", Undo.CanRedo))
+            bx += w + gap;
+
+            w = Gui.ButtonWidth("Redo");
+            if (Gui.Button(new Rectangle(bx, by, w, bh), "Redo", Undo.CanRedo))
                 Notify(Undo.Redo() ? "Redo" : null);
 
             // segunda faixa: acoes sobre o campo focado
@@ -165,20 +178,28 @@ namespace myProject.Inspector
             Gui.Rect(bar2, GuiStyle.SectionBg);
             Gui.Rect(new Rectangle(bar2.X, bar2.Bottom - 1, bar2.Width, 1), GuiStyle.Border);
             bool hasRow = focusedRow != null && pendingRows.ContainsKey(focusedRow);
-            bx = bar2.X + GuiStyle.Padding; by = bar2.Y + 3;
-            if (Gui.Button(new Rectangle(bx, by, 40, bh), "Reset", hasRow))
+            bx = bar2.X + GuiStyle.Padding;
+            by = bar2.Y + (bar2.Height - bh) / 2;
+
+            w = Gui.ButtonWidth("Reset");
+            if (Gui.Button(new Rectangle(bx, by, w, bh), "Reset", hasRow))
                 ResetFocused();
-            bx += 43;
-            if (Gui.Button(new Rectangle(bx, by, 36, bh), "Copy", hasRow))
+            bx += w + gap;
+
+            w = Gui.ButtonWidth("Copy");
+            if (Gui.Button(new Rectangle(bx, by, w, bh), "Copy", hasRow))
                 CopyFocused();
-            bx += 39;
+            bx += w + gap;
+
             bool canPaste = hasRow && clipboardType != null
                 && pendingRows[focusedRow].Member.ValueType == clipboardType;
-            if (Gui.Button(new Rectangle(bx, by, 38, bh), "Paste", canPaste))
+            w = Gui.ButtonWidth("Paste");
+            if (Gui.Button(new Rectangle(bx, by, w, bh), "Paste", canPaste))
                 PasteFocused();
-            bx += 41;
+            bx += w + gap * 2;
+
             string rowLabel = hasRow ? pendingRows[focusedRow].Member.Label : "nenhum campo";
-            Gui.Text(rowLabel, bx + 4, by + 4, GuiStyle.TextDim, bar2.Right - bx - 8);
+            Gui.TextIn(rowLabel, bx, bar2, GuiStyle.TextDim, bar2.Right - bx - GuiStyle.Padding);
 
             return bar2.Bottom;
         }
@@ -207,9 +228,10 @@ namespace myProject.Inspector
             object sel = Selection.Current;
             if (sel == null)
             {
-                Gui.Text("Clique numa entidade para inspecionar.", content.X + GuiStyle.Padding, y + 8, GuiStyle.TextDim, content.Width - 12);
-                Gui.Text("F1 alterna o inspector.", content.X + GuiStyle.Padding, y + 22, GuiStyle.TextDim, content.Width - 12);
-                return y + 40;
+                int lh = GuiStyle.TextHeight + GuiStyle.Scale * 2;
+                Gui.Text("Clique numa entidade para inspecionar.", content.X + GuiStyle.Padding, y + lh, GuiStyle.TextDim, content.Width - GuiStyle.Padding * 2);
+                Gui.Text("F1 alterna o inspector.", content.X + GuiStyle.Padding, y + lh * 2, GuiStyle.TextDim, content.Width - GuiStyle.Padding * 2);
+                return y + lh * 4;
             }
 
             // secao do proprio objeto + uma por componente
@@ -239,7 +261,8 @@ namespace myProject.Inspector
             var type = TypeCache.Get(target.GetType());
             if (type.Members.Length == 0)
             {
-                Gui.Text("(sem campos expostos)", content.X + GuiStyle.Indent, y + 4, GuiStyle.TextDim);
+                Gui.TextIn("(sem campos expostos)", content.X + GuiStyle.Indent,
+                    new Rectangle(content.X, y, content.Width, GuiStyle.RowHeight), GuiStyle.TextDim);
                 return y + GuiStyle.RowHeight;
             }
             foreach (var m in type.Members)
@@ -262,9 +285,10 @@ namespace myProject.Inspector
             changedOut = false;
             if (member.Header != null)
             {
-                Gui.Text(member.Header, content.X + GuiStyle.Padding, y + 6, GuiStyle.TextHeader);
+                Gui.TextIn(member.Header, content.X + GuiStyle.Padding,
+                    new Rectangle(content.X, y, content.Width, GuiStyle.RowHeight), GuiStyle.TextHeader);
                 Gui.Rect(new Rectangle(content.X + GuiStyle.Padding, y + GuiStyle.RowHeight - 2,
-                    content.Width - GuiStyle.Padding * 2, 1), GuiStyle.Separator);
+                    content.Width - GuiStyle.Padding * 2, GuiStyle.Scale), GuiStyle.Separator);
                 y += GuiStyle.RowHeight;
             }
 
@@ -285,14 +309,15 @@ namespace myProject.Inspector
             // marcador de "modificado desde a selecao" e de campo focado
             bool modified = ReferenceEquals(target, Selection.Current) && Selection.IsModified(member.Name, value);
             if (modified)
-                Gui.Rect(new Rectangle(row.X + 1, row.Y + 1, 2, row.Height - 2), GuiStyle.Modified);
+                Gui.Rect(new Rectangle(row.X + 1, row.Y + 1, 2 * GuiStyle.Scale, row.Height - 2),
+                    GuiStyle.Modified);
             if (focusedRow == path)
                 Gui.Border(row, GuiStyle.Accent);
 
             int labelX = content.X + GuiStyle.Padding + indent * GuiStyle.Indent;
             int labelW = LabelWidth(content) - indent * GuiStyle.Indent - GuiStyle.Padding;
             Color labelColor = member.CanWrite ? GuiStyle.Text : GuiStyle.Locked;
-            Gui.Text(member.Label, labelX, row.Y + 5, labelColor, labelW);
+            Gui.TextIn(member.Label, labelX, row, labelColor, labelW);
 
             var fieldRect = new Rectangle(content.X + LabelWidth(content), row.Y + 1,
                 content.Width - LabelWidth(content) - GuiStyle.Padding - 8, row.Height - 2);
@@ -341,8 +366,8 @@ namespace myProject.Inspector
 
             if (drawer == null)
             {
-                Gui.Text(value == null ? "null" : value.ToString(), fieldRect.X + 2, row.Y + 5,
-                    GuiStyle.TextDim, fieldRect.Width - 4);
+                Gui.TextIn(value == null ? "null" : value.ToString(), fieldRect.X + 2 * GuiStyle.Scale, row,
+                    GuiStyle.TextDim, fieldRect.Width - 4 * GuiStyle.Scale);
                 return row.Bottom;
             }
 
@@ -454,15 +479,16 @@ namespace myProject.Inspector
 
         private void DrawStatusBar(Rectangle panel, int screenH)
         {
-            var bar = new Rectangle(panel.X, screenH - 18, panel.Width, 18);
+            var bar = new Rectangle(panel.X, screenH - GuiStyle.StatusBar, panel.Width, GuiStyle.StatusBar);
             Gui.Rect(bar, GuiStyle.HeaderBg);
             Gui.Rect(new Rectangle(bar.X, bar.Y, bar.Width, 1), GuiStyle.Border);
 
             string left = tooltip ?? (statusFrames > 0 ? status : null)
-                ?? (Selection.HasSelection ? "Arraste numeros | Enter confirma | Ctrl+Z/Y" : "F1 fecha");
-            Gui.Text(left, bar.X + GuiStyle.Padding, bar.Y + 5, GuiStyle.TextDim, bar.Width - 70);
-            Gui.TextRight("U:" + Undo.UndoCount + " R:" + Undo.RedoCount,
-                bar.Right - GuiStyle.Padding, bar.Y + 5, GuiStyle.TextDim);
+                ?? (Selection.HasSelection ? "Arraste ou digite | Ctrl+Z/Y" : "F1 fecha");
+            string counters = "U:" + Undo.UndoCount + " R:" + Undo.RedoCount;
+            int cw = Gui.MeasureText(counters) + GuiStyle.Padding * 2;
+            Gui.TextIn(left, bar.X + GuiStyle.Padding, bar, GuiStyle.TextDim, bar.Width - cw);
+            Gui.TextIn(counters, bar.Right - GuiStyle.Padding - Gui.MeasureText(counters), bar, GuiStyle.TextDim);
             tooltip = null;
         }
     }
