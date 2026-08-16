@@ -104,7 +104,7 @@ namespace MonocleSmoke
         // aperta ataque 1 frame e roda ate o golpe terminar; retorna frames de Attacking
         private static int Swing(Scene s, MeleeCombo combo)
         {
-            Step(s, Keys.A);
+            Step(s, Keys.X);
             int frames = combo.Attacking ? 1 : 0;
             for (int i = 0; i < 60 && combo.Attacking; i++)
             {
@@ -203,13 +203,13 @@ namespace MonocleSmoke
             Check("Combo completo causa 21 (HP 30 -> 9)", dummy.Health.Current == 9,
                 "HP=" + dummy.Health.Current);
 
-            Step(lvl, Keys.A); // logo apos o finisher: ainda em recuperacao
+            Step(lvl, Keys.X); // logo apos o finisher: ainda em recuperacao
             Check("Finisher: recuperacao bloqueia o ataque seguinte",
                 !combo.Attacking && combo.Recovering, "Recovering=" + combo.Recovering);
 
             int g = 0;
             while (combo.Recovering && g++ < 60) Step(lvl);      // espera a recuperacao
-            Step(lvl, Keys.A);                                   // dentro da janela: recomeca
+            Step(lvl, Keys.X);                                   // dentro da janela: recomeca
             Check("Apos a recuperacao o combo recomeca no estagio 1",
                 combo.Attacking && combo.Stage == 0, "Stage=" + combo.Stage + " frames=" + g);
         }
@@ -221,7 +221,7 @@ namespace MonocleSmoke
             Swing(lvl, combo);                                   // golpe 1
             float x0 = p.X;
             for (int i = 0; i < 8; i++) Step(lvl, Keys.Right);   // passo curto de ajuste
-            Step(lvl, Keys.A);
+            Step(lvl, Keys.X);
             Check("Movimento: ajuste curto (< " + MeleeCombo.MoveAllowance + "px) mantem o combo",
                 combo.Attacking && combo.Stage == 1,
                 "andou=" + (p.X - x0) + " Stage=" + combo.Stage);
@@ -229,7 +229,7 @@ namespace MonocleSmoke
 
             float x1 = p.X;
             for (int i = 0; i < 24; i++) Step(lvl, Keys.Right);  // corre p/ longe
-            Step(lvl, Keys.A);
+            Step(lvl, Keys.X);
             Check("Movimento: andar alem da margem reseta o combo",
                 combo.Attacking && combo.Stage == 0,
                 "andou=" + (p.X - x1) + " Stage=" + combo.Stage);
@@ -243,13 +243,13 @@ namespace MonocleSmoke
             Check("Pulo: antes de pular a sequencia segue viva (proximo = estagio 2)",
                 combo.NextStage == 1, "NextStage=" + combo.NextStage);
 
-            Step(lvl, Keys.C);                                   // pula
-            for (int i = 0; i < 4; i++) Step(lvl, Keys.C);       // ja fora do chao
+            Step(lvl, Keys.Z);                                   // pula
+            for (int i = 0; i < 4; i++) Step(lvl, Keys.Z);       // ja fora do chao
             Check("Pulo: sair do solo reseta o combo",
                 !p.OnGround() && combo.NextStage == 0,
                 "ar=" + !p.OnGround() + " NextStage=" + combo.NextStage);
 
-            Step(lvl, Keys.A);                                   // ataque aereo seguinte
+            Step(lvl, Keys.X);                                   // ataque aereo seguinte
             Check("Pulo: o golpe seguinte sai como estagio 1",
                 combo.Attacking && combo.Stage == 0, "Stage=" + combo.Stage);
         }
@@ -258,7 +258,7 @@ namespace MonocleSmoke
         {
             var (lvl, p, combo, dummy) = Boot(withDummy: false); // sem alvo: golpe nao gera recuo
 
-            Step(lvl, Keys.A); // dispara o golpe 1
+            Step(lvl, Keys.X); // dispara o golpe 1
             float x0 = p.X;
             for (int i = 0; i < 60 && combo.Attacking; i++) Step(lvl, Keys.Right);
             Check("Trava: segurar direita NAO move durante o golpe", p.X == x0, "dX=" + (p.X - x0));
@@ -273,7 +273,7 @@ namespace MonocleSmoke
 
             Swing(lvl, combo); // golpe 1 olhando p/ direita
             for (int i = 0; i < 6; i++) Step(lvl, Keys.Left); // vira no intervalo (dentro da janela)
-            Step(lvl, Keys.A); // ataca olhando p/ esquerda
+            Step(lvl, Keys.X); // ataca olhando p/ esquerda
             Check("Virar de direcao reseta o combo (dispara estagio 1, nao 2)",
                 combo.Attacking && combo.Stage == 0, "Stage=" + combo.Stage);
         }
@@ -283,10 +283,10 @@ namespace MonocleSmoke
             // no ar o golpe e um slash solto: nao trava o player, que continua caindo
             var (lvl, p, combo, dummy) = Boot(withDummy: false);
 
-            for (int i = 0; i < 14; i++) Step(lvl, Keys.C);       // pulo maximo (var jump = 12f)
+            for (int i = 0; i < 14; i++) Step(lvl, Keys.Z);       // pulo maximo (var jump = 12f)
             for (int i = 0; i < 30 && p.Speed.Y < 0f; i++) Step(lvl);   // sobe ate o apice
             float y0 = p.Y;
-            Step(lvl, Keys.A);                       // slash aereo
+            Step(lvl, Keys.X);                       // slash aereo
             bool locked = p.StateMachine.State == 11;
             for (int i = 0; i < 60 && combo.Attacking; i++) Step(lvl);
             Check("Aereo: o slash nao trava o player (segue no estado Normal)",
@@ -299,7 +299,7 @@ namespace MonocleSmoke
         {
             // chao + segurando CIMA: golpe acima da cabeca
             var (lvl, p, combo, dummy) = Boot(withDummy: false);
-            Step(lvl, Keys.Up, Keys.A);
+            Step(lvl, Keys.Up, Keys.X);
             AttackHitbox atk = WaitHitbox(lvl, Keys.Up);
             Check("Direcional: chao + cima = golpe acima do player",
                 atk != null && atk.Dir == -Vector2.UnitY && atk.Bottom <= p.Top + 0.01f,
@@ -307,8 +307,8 @@ namespace MonocleSmoke
 
             // ar + segurando BAIXO: mergulho com golpe abaixo dos pes
             var (lvl2, p2, combo2, _) = Boot(withDummy: false);
-            for (int i = 0; i < 8; i++) Step(lvl2, Keys.C); // pulo alto
-            Step(lvl2, Keys.Down, Keys.A);
+            for (int i = 0; i < 8; i++) Step(lvl2, Keys.Z); // pulo alto
+            Step(lvl2, Keys.Down, Keys.X);
             AttackHitbox atk2 = WaitHitbox(lvl2, Keys.Down);
             Check("Direcional: ar + baixo = golpe abaixo do player",
                 atk2 != null && atk2.Dir == Vector2.UnitY && atk2.Top >= p2.Bottom - 0.01f,
@@ -316,8 +316,8 @@ namespace MonocleSmoke
 
             // ar + segurando CIMA: golpe acima SEM travar (player segue no estado Normal)
             var (lvl3, p3, combo3, _) = Boot(withDummy: false);
-            for (int i = 0; i < 8; i++) Step(lvl3, Keys.C);
-            Step(lvl3, Keys.Up, Keys.A);
+            for (int i = 0; i < 8; i++) Step(lvl3, Keys.Z);
+            Step(lvl3, Keys.Up, Keys.X);
             AttackHitbox atk3 = WaitHitbox(lvl3, Keys.Up);
             Check("Direcional: ar + cima = golpe acima sem travar (Normal)",
                 atk3 != null && atk3.Dir == -Vector2.UnitY && p3.StateMachine.State == 0,
@@ -330,7 +330,7 @@ namespace MonocleSmoke
             // reseta a progressao do combo horizontal
             var (lvl, p, combo, dummy) = Boot(withDummy: false);
             Swing(lvl, combo);                    // horizontal 1: proximo seria o estagio 2
-            Step(lvl, Keys.Up, Keys.A);           // vertical dentro da janela
+            Step(lvl, Keys.Up, Keys.X);           // vertical dentro da janela
             Check("Vertical: dispara como golpe unico (estagio 1, dano 5)",
                 combo.Attacking && combo.Stage == 0, "Stage=" + combo.Stage);
             for (int i = 0; i < 60 && combo.Attacking; i++) Step(lvl, Keys.Up);
@@ -345,7 +345,7 @@ namespace MonocleSmoke
             float[] w = new float[3];
             for (int s = 0; s < 3; s++)
             {
-                Step(lvl, Keys.A);
+                Step(lvl, Keys.X);
                 AttackHitbox atk = WaitHitbox(lvl);
                 w[s] = (atk != null) ? atk.Width : -1f;
                 for (int i = 0; i < 60 && combo.Attacking; i++) Step(lvl);
@@ -360,8 +360,8 @@ namespace MonocleSmoke
             // mergulho (Gwendolyn): desce reto a DiveSpeed; acertar cancela e impulsiona
             // p/ cima com o Bounce (Hornet em Silksong: -140 + var jump + refill)
             var (lvl, p, combo, dummy) = Boot(playerX: 60f); // sobre o boneco
-            for (int i = 0; i < 8; i++) Step(lvl, Keys.C);   // pulo alto
-            Step(lvl, Keys.Down, Keys.A);
+            for (int i = 0; i < 8; i++) Step(lvl, Keys.Z);   // pulo alto
+            Step(lvl, Keys.Down, Keys.X);
             Check("Mergulho: desce reto a DiveSpeed (240) travado",
                 combo.Diving && p.Speed.Y == MeleeCombo.DiveSpeed && p.StateMachine.State == 11,
                 "Diving=" + combo.Diving + " Speed.Y=" + p.Speed.Y);
@@ -386,8 +386,8 @@ namespace MonocleSmoke
         {
             // sem alvo, o mergulho persiste ate pousar e termina no chao
             var (lvl, p, combo, _) = Boot(withDummy: false);
-            for (int i = 0; i < 8; i++) Step(lvl, Keys.C);
-            Step(lvl, Keys.Down, Keys.A);
+            for (int i = 0; i < 8; i++) Step(lvl, Keys.Z);
+            Step(lvl, Keys.Down, Keys.X);
             for (int i = 0; i < 120 && combo.Attacking; i++) Step(lvl);
             Step(lvl); // flush da remocao adiada da hitbox
             Check("Mergulho: termina ao pousar (controle volta no chao)",
@@ -403,30 +403,30 @@ namespace MonocleSmoke
             // slash o buffer disparava o mergulho e matava o dash (state 2 -> 11, Speed zerado)
             // caso direto: apertar baixo+ataque no meio do dash, sem golpe em andamento
             var (l0, p0, c0, _) = Boot(withDummy: false);
-            for (int i = 0; i < 14; i++) Step(l0, Keys.C);
+            for (int i = 0; i < 14; i++) Step(l0, Keys.Z);
             for (int i = 0; i < 30 && p0.Speed.Y < 0f; i++) Step(l0);
-            Step(l0, Keys.Right, Keys.X);                              // dash aereo
+            Step(l0, Keys.Right, Keys.C);                              // dash aereo
             bool cortou = false;
             for (int i = 0; i < 12 && p0.StateMachine.State == 2; i++)
             {
-                Step(l0, (i == 2) ? new[] { Keys.Down, Keys.A } : new[] { Keys.Down });
+                Step(l0, (i == 2) ? new[] { Keys.Down, Keys.X } : new[] { Keys.Down });
                 if (c0.Diving || p0.StateMachine.State == 11) cortou = true;
             }
             Check("Dash: baixo+ataque no meio do dash nao corta o dash", !cortou,
                 "dive=" + c0.Diving + " state=" + p0.StateMachine.State);
 
             var (lvl, p, combo, _) = Boot(withDummy: false);
-            for (int i = 0; i < 14; i++) Step(lvl, Keys.C);            // pulo maximo
+            for (int i = 0; i < 14; i++) Step(lvl, Keys.Z);            // pulo maximo
             for (int i = 0; i < 30 && p.Speed.Y < 0f; i++) Step(lvl);  // ate o apice
-            Step(lvl, Keys.A);                                         // slash aereo
-            Step(lvl, Keys.Right, Keys.X);                             // dash durante o slash
+            Step(lvl, Keys.X);                                         // slash aereo
+            Step(lvl, Keys.Right, Keys.C);                             // dash durante o slash
 
             bool dashInteiro = true, mergulhou = false;
             float peak = 0f;
             int frames = 0;
             for (int i = 0; i < 12 && p.StateMachine.State == 2; i++)  // enquanto o dash roda
             {
-                Step(lvl, (i == 1) ? new[] { Keys.Down, Keys.A } : new[] { Keys.Down });
+                Step(lvl, (i == 1) ? new[] { Keys.Down, Keys.X } : new[] { Keys.Down });
                 frames++;
                 peak = Math.Max(peak, p.Speed.X);
                 if (combo.Diving) mergulhou = true;
@@ -439,7 +439,7 @@ namespace MonocleSmoke
 
             // acabou o dash: o mergulho volta a sair normalmente
             Step(lvl);                                                 // frame neutro
-            Step(lvl, Keys.Down, Keys.A);
+            Step(lvl, Keys.Down, Keys.X);
             Check("Dash: acabado o dash, o mergulho dispara normalmente",
                 combo.Diving && p.StateMachine.State == 11,
                 "dive=" + combo.Diving + " state=" + p.StateMachine.State);
@@ -450,7 +450,7 @@ namespace MonocleSmoke
             // horizontal: acertar o boneco desliza o player p/ tras (recuo com decaimento)
             var (lvl, p, combo, dummy) = Boot();
             float x0 = p.X;
-            Step(lvl, Keys.A);
+            Step(lvl, Keys.X);
             for (int i = 0; i < 60 && combo.Attacking; i++) Step(lvl);
             Check("Recuo: acertar com golpe horizontal empurra o player p/ tras",
                 p.X < x0, "dX=" + (p.X - x0));
@@ -460,22 +460,22 @@ namespace MonocleSmoke
         {
             // anti-bounce-infinito: depois do impulso, mergulho so no apice (quando cai)
             var (lvl, p, combo, dummy) = Boot(playerX: 60f);
-            for (int i = 0; i < 8; i++) Step(lvl, Keys.C);
-            Step(lvl, Keys.Down, Keys.A);                     // mergulho 1
+            for (int i = 0; i < 8; i++) Step(lvl, Keys.Z);
+            Step(lvl, Keys.Down, Keys.X);                     // mergulho 1
             for (int i = 0; i < 90 && combo.Attacking; i++)
             {
                 Step(lvl, Keys.Down);
                 if (dummy.Health.Current < 30) break;         // bounce disparou
             }
 
-            Step(lvl, Keys.Down, Keys.A);                     // aperto na SUBIDA
+            Step(lvl, Keys.Down, Keys.X);                     // aperto na SUBIDA
             Check("Bounce: apertar na subida nao dispara novo mergulho",
                 !combo.Attacking && p.Speed.Y < 0f,
                 "Attacking=" + combo.Attacking + " Speed.Y=" + p.Speed.Y);
 
             int g = 0;
             while (p.Speed.Y < 0f && g++ < 90) Step(lvl);     // espera o apice
-            Step(lvl, Keys.Down, Keys.A);                     // comecou a cair: pode
+            Step(lvl, Keys.Down, Keys.X);                     // comecou a cair: pode
             Check("Bounce: no inicio da queda o mergulho volta a disparar",
                 combo.Attacking && combo.Diving, "Diving=" + combo.Diving);
         }
@@ -485,7 +485,7 @@ namespace MonocleSmoke
             // requisito de design: do apice do pulo maximo ate o chao cabem DOIS slashes
             // (medida da queda: 18 frames; cada slash gasta ~8)
             var (lvl, p, combo, _) = Boot(withDummy: false);
-            for (int i = 0; i < 14; i++) Step(lvl, Keys.C);              // pulo maximo (var jump = 12f)
+            for (int i = 0; i < 14; i++) Step(lvl, Keys.Z);              // pulo maximo (var jump = 12f)
             for (int i = 0; i < 30 && p.Speed.Y < 0f; i++) Step(lvl);    // sobe ate o apice
 
             // conta hitboxes nascidas: 1 por slash, e so nascem se o golpe passou a
@@ -494,7 +494,7 @@ namespace MonocleSmoke
             AttackHitbox last = null;
             for (int i = 0; i < 120 && !p.OnGround(); i++)   // masha do apice ate pousar
             {
-                Step(lvl, (i % 2 == 0) ? new[] { Keys.A } : new Keys[0]);
+                Step(lvl, (i % 2 == 0) ? new[] { Keys.X } : new Keys[0]);
                 queda++;
                 AttackHitbox atk = lvl.Entities.FindFirst<AttackHitbox>();
                 if (atk != null && atk != last) { slashes++; last = atk; }

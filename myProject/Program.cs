@@ -24,6 +24,10 @@ if (mode == "--parity")
 {
     Environment.Exit(ParityTest.Run());
 }
+if (mode == "--input-test")
+{
+    Environment.Exit(InputTest.Run());
+}
 if (mode == "--camera-test")
 {
     Environment.Exit(CameraTest.Run());

@@ -127,18 +127,18 @@ namespace MonocleSmoke
         // ---- dash ----
         private static void TestDashUpBecomesHorizontal()
         {
-            Vector2 dir = Dash(new Vector2(40f, 150f), Keys.Up, Keys.X);
+            Vector2 dir = Dash(new Vector2(40f, 150f), Keys.Up, Keys.C);
             Check("Dash p/ cima vira dash horizontal (lado do sprite)",
                 dir == new Vector2(1f, 0f), "DashDir=" + dir);
         }
 
         private static void TestDashDiagonalBecomesHorizontal()
         {
-            Vector2 up = Dash(new Vector2(40f, 150f), Keys.Up, Keys.Right, Keys.X);
+            Vector2 up = Dash(new Vector2(40f, 150f), Keys.Up, Keys.Right, Keys.C);
             Check("Dash diagonal p/ cima cai p/ a horizontal", up == new Vector2(1f, 0f), "DashDir=" + up);
 
             // diagonal p/ baixo e a entrada do hyper dash: sem ela o hyper nao existe
-            Vector2 down = Dash(new Vector2(40f, 150f), Keys.Down, Keys.Right, Keys.X);
+            Vector2 down = Dash(new Vector2(40f, 150f), Keys.Down, Keys.Right, Keys.C);
             Check("Dash diagonal p/ baixo cai p/ a horizontal (sem hyper dash)",
                 down == new Vector2(1f, 0f), "DashDir=" + down);
         }
@@ -146,12 +146,12 @@ namespace MonocleSmoke
         private static void TestDashUpgradesDevolvemAsDirecoes()
         {
             Abilities.DashDiagonal = true;
-            Vector2 diag = Dash(new Vector2(40f, 150f), Keys.Up, Keys.Right, Keys.X);
+            Vector2 diag = Dash(new Vector2(40f, 150f), Keys.Up, Keys.Right, Keys.C);
             Check("Upgrade DashDiagonal devolve a diagonal", diag.X > 0f && diag.Y < 0f, "DashDir=" + diag);
             Abilities.DashDiagonal = false;
 
             Abilities.DashVertical = true;
-            Vector2 vert = Dash(new Vector2(40f, 150f), Keys.Up, Keys.X);
+            Vector2 vert = Dash(new Vector2(40f, 150f), Keys.Up, Keys.C);
             Check("Upgrade DashVertical devolve o dash p/ cima", vert == new Vector2(0f, -1f), "DashDir=" + vert);
             Abilities.DashVertical = false;
         }
@@ -163,10 +163,10 @@ namespace MonocleSmoke
             // dentro do solido o Actor nao consegue subir e o teste de escalada mediria zero
             Player p = Boot(out Scene s, new Vector2(12f, 150f), true);
             Settle(s, p);
-            for (int i = 0; i < 4; i++) Step(s, Keys.Left, Keys.Z);   // tenta agarrar
+            for (int i = 0; i < 4; i++) Step(s, Keys.Left, Keys.V);   // tenta agarrar
             bool climbing = p.StateMachine.State == 1;
             float stamina = p.Stamina;
-            for (int i = 0; i < 20; i++) Step(s, Keys.Left, Keys.Z, Keys.Up);  // tenta escalar
+            for (int i = 0; i < 20; i++) Step(s, Keys.Left, Keys.V, Keys.Up);  // tenta escalar
             Check("Grab na parede nao entra no estado Climb (1)", !climbing, "state=" + p.StateMachine.State);
             Check("Sem climb, segurar grab nao drena stamina", Near(p.Stamina, stamina, 0.01f),
                 "Stamina=" + p.Stamina);
@@ -180,7 +180,7 @@ namespace MonocleSmoke
             Player p = Boot(out Scene s, new Vector2(12f, 90f), true);
             for (int i = 0; i < 6; i++) Step(s);
             bool air = !p.OnGround();
-            Step(s, Keys.Left, Keys.Z, Keys.C);
+            Step(s, Keys.Left, Keys.V, Keys.Z);
             Check("Grab + pulo na parede = wall jump (Speed.X ~ +130), nao climb jump",
                 air && Near(p.Speed.X, WallJumpH, 8f), "air=" + air + " Speed.X=" + p.Speed.X);
         }
@@ -201,10 +201,10 @@ namespace MonocleSmoke
             // dentro do solido o Actor nao consegue subir e o teste de escalada mediria zero
             Player p = Boot(out Scene s, new Vector2(12f, 150f), true);
             Settle(s, p);
-            for (int i = 0; i < 4; i++) Step(s, Keys.Left, Keys.Z);
+            for (int i = 0; i < 4; i++) Step(s, Keys.Left, Keys.V);
             bool climbing = p.StateMachine.State == 1;
             float y0 = p.Y;
-            for (int i = 0; i < 20; i++) Step(s, Keys.Left, Keys.Z, Keys.Up);
+            for (int i = 0; i < 20; i++) Step(s, Keys.Left, Keys.V, Keys.Up);
             Check("Upgrade WallClimb devolve o estado Climb (1)", climbing, "state=" + p.StateMachine.State);
             Check("Upgrade WallClimb volta a escalar (Y sobe)", p.Y < y0, "dY=" + (p.Y - y0));
             Abilities.WallClimb = false;
@@ -215,23 +215,23 @@ namespace MonocleSmoke
         {
             Player p = Boot(out Scene s, new Vector2(44f, 150f), false, withCombo: true);
             Settle(s, p);
-            int hitH = FramesAteHitbox(s, Keys.A);
+            int hitH = FramesAteHitbox(s, Keys.X);
 
             Player p2 = Boot(out Scene s2, new Vector2(44f, 150f), false, withCombo: true);
             Settle(s2, p2);
-            int hitUp = FramesAteHitbox(s2, Keys.Up, Keys.A);
+            int hitUp = FramesAteHitbox(s2, Keys.Up, Keys.X);
             Check("Golpe p/ cima demora mais p/ a hitbox nascer que o horizontal 1",
                 hitH > 0 && hitUp > hitH, "horizontal=" + hitH + " cima=" + hitUp);
 
             Player p3 = Boot(out Scene s3, new Vector2(44f, 150f), false, withCombo: true);
             MeleeCombo c3 = p3.Get<MeleeCombo>();
             Settle(s3, p3);
-            int durH = FramesDoGolpe(s3, c3, Keys.A);
+            int durH = FramesDoGolpe(s3, c3, Keys.X);
 
             Player p4 = Boot(out Scene s4, new Vector2(44f, 150f), false, withCombo: true);
             MeleeCombo c4 = p4.Get<MeleeCombo>();
             Settle(s4, p4);
-            int durUp = FramesDoGolpe(s4, c4, Keys.Up, Keys.A);
+            int durUp = FramesDoGolpe(s4, c4, Keys.Up, Keys.X);
             Check("Golpe p/ cima dura mais que o horizontal 1 (18 vs 12 frames)",
                 durUp > durH, "horizontal=" + durH + " cima=" + durUp);
             Check("Golpe p/ cima segue com dano/estagio do 1o golpe", c4.NextStage == 0,

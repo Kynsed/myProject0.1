@@ -275,7 +275,7 @@ namespace MonocleSmoke
             var (lvl, p, cam) = Boot();
             float y0 = Center(cam).Y;
             float maxDelta = 0f;
-            for (int i = 0; i < 14; i++) { Step(lvl, Keys.C); maxDelta = Math.Max(maxDelta, Math.Abs(Center(cam).Y - y0)); }
+            for (int i = 0; i < 14; i++) { Step(lvl, Keys.Z); maxDelta = Math.Max(maxDelta, Math.Abs(Center(cam).Y - y0)); }
             for (int i = 0; i < 40 && !p.OnGround(); i++) { Step(lvl); maxDelta = Math.Max(maxDelta, Math.Abs(Center(cam).Y - y0)); }
             Check("Vertical: pulo inteiro nao mexe a camera (coleira de subida)",
                 maxDelta < 2f, "desvio maximo=" + maxDelta);
@@ -355,7 +355,7 @@ namespace MonocleSmoke
             var (lvl2, p2, cam2) = Boot();
             for (int i = 0; i < 90; i++) Step(lvl2, Keys.Up);   // olhando
             bool olhando = cam2.Looking;
-            for (int i = 0; i < 6; i++) Step(lvl2, Keys.Up, Keys.C);  // pula segurando cima
+            for (int i = 0; i < 6; i++) Step(lvl2, Keys.Up, Keys.Z);  // pula segurando cima
             Check("Look: pular interrompe o olhar", olhando && !cam2.LookPose,
                 "olhava=" + olhando + " pose=" + cam2.LookPose);
         }
@@ -457,7 +457,7 @@ namespace MonocleSmoke
                     }
                     bool pula = segura > 0;
                     if (pula) segura--;
-                    Step(l2, pula ? new[] { Keys.Right, Keys.C } : new[] { Keys.Right });
+                    Step(l2, pula ? new[] { Keys.Right, Keys.Z } : new[] { Keys.Right });
                     p2 = l2.Tracker.GetEntity<Player>();  // morrer troca a instancia do player
                     if (p2 != null)
                         topo = Math.Min(topo, p2.Y);
@@ -477,7 +477,7 @@ namespace MonocleSmoke
             Vector2 prev = lvl.Camera.Position;
             for (int i = 0; i < 60; i++)   // dash: a mudanca de velocidade mais brusca do jogo
             {
-                Step(lvl, (i == 0) ? new[] { Keys.Right, Keys.X } : new[] { Keys.Right });
+                Step(lvl, (i == 0) ? new[] { Keys.Right, Keys.C } : new[] { Keys.Right });
                 maior = Math.Max(maior, (lvl.Camera.Position - prev).Length());
                 prev = lvl.Camera.Position;
             }

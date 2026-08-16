@@ -138,7 +138,7 @@ namespace MonocleSmoke
             Player p = Boot(out Scene s, new Vector2(40f, 150f), false);
             Settle(s, p);
             bool ground = p.OnGround();
-            Step(s, Keys.C);                                     // pula
+            Step(s, Keys.Z);                                     // pula
             Check("Jump: impulso inicial == JumpSpeed (-105)", ground && Near(p.Speed.Y, JumpSpeed, 2f), "OnGround=" + ground + " Speed.Y=" + p.Speed.Y);
         }
 
@@ -146,7 +146,7 @@ namespace MonocleSmoke
         {
             Player p = Boot(out Scene s, new Vector2(40f, 150f), false);
             Settle(s, p);
-            Step(s, Keys.Right, Keys.X);                         // dash p/ direita
+            Step(s, Keys.Right, Keys.C);                         // dash p/ direita
             float peak = 0f;
             int dashState = -1;
             for (int i = 0; i < 12; i++)
@@ -166,7 +166,7 @@ namespace MonocleSmoke
             Player p = Boot(out Scene s, new Vector2(12f, 90f), true);
             for (int i = 0; i < 6; i++) Step(s);                       // cai ao lado da parede
             bool air = !p.OnGround();
-            Step(s, Keys.C);                                           // wall jump (neutro) -> p/ longe (+X)
+            Step(s, Keys.Z);                                           // wall jump (neutro) -> p/ longe (+X)
             Check("WallJump: empurra p/ longe da parede (Speed.X ~ +130)", air && Near(p.Speed.X, WallJumpH, 8f), "air=" + air + " Speed.X=" + p.Speed.X);
             Check("WallJump: impulso vertical (Speed.Y == -105)", Near(p.Speed.Y, JumpSpeed, 4f), "Speed.Y=" + p.Speed.Y);
         }
@@ -175,10 +175,10 @@ namespace MonocleSmoke
         {
             Player p = Boot(out Scene s, new Vector2(9f, 150f), true);
             Settle(s, p);
-            for (int i = 0; i < 4; i++) Step(s, Keys.Left, Keys.Z);  // agarra
+            for (int i = 0; i < 4; i++) Step(s, Keys.Left, Keys.V);  // agarra
             bool climbing = p.StateMachine.State == 1;
             float startStam = p.Stamina;
-            for (int i = 0; i < 30; i++) Step(s, Keys.Left, Keys.Z, Keys.Up); // escala subindo
+            for (int i = 0; i < 30; i++) Step(s, Keys.Left, Keys.V, Keys.Up); // escala subindo
             Check("Climb: entra no estado Climb (1)", climbing, "state=" + p.StateMachine.State);
             Check("Climb: stamina inicia em 110 e drena", startStam <= ClimbMaxStamina + 0.1f && p.Stamina < startStam, "start=" + startStam + " agora=" + p.Stamina);
         }
@@ -206,7 +206,7 @@ namespace MonocleSmoke
             int g = 0;
             while (p.OnGround() && g++ < 80) Step(s, Keys.Right);   // anda ate sair da borda
             Step(s, Keys.Right);                                    // 1 frame no ar
-            Step(s, Keys.Right, Keys.C);                            // pula (~0.03s apos sair)
+            Step(s, Keys.Right, Keys.Z);                            // pula (~0.03s apos sair)
             Check("Coyote: pula logo apos sair da borda (Speed.Y ~ -105)", Near(p.Speed.Y, JumpSpeed, 6f), "Speed.Y=" + p.Speed.Y);
 
             // negativo: espera a janela passar e tenta pular
@@ -215,7 +215,7 @@ namespace MonocleSmoke
             g = 0;
             while (p2.OnGround() && g++ < 80) Step(s2, Keys.Right);
             for (int i = 0; i < 12; i++) Step(s2, Keys.Right);      // >0.1s no ar
-            Step(s2, Keys.Right, Keys.C);
+            Step(s2, Keys.Right, Keys.Z);
             Check("Coyote: apos a janela NAO pula (continua caindo)", p2.Speed.Y > 0f, "Speed.Y=" + p2.Speed.Y);
         }
 
@@ -225,7 +225,7 @@ namespace MonocleSmoke
             Player p = Boot(out Scene s, new Vector2(40f, 150f), false);
             Settle(s, p);
             float groundY = p.Y, tapMin = p.Y;
-            Step(s, Keys.C);                                        // 1 frame de pulo, depois solta
+            Step(s, Keys.Z);                                        // 1 frame de pulo, depois solta
             for (int i = 0; i < 45; i++) { Step(s); tapMin = Math.Min(tapMin, p.Y); }
             float tapH = groundY - tapMin;
 
@@ -233,7 +233,7 @@ namespace MonocleSmoke
             Player p2 = Boot(out Scene s2, new Vector2(40f, 150f), false);
             Settle(s2, p2);
             float groundY2 = p2.Y, heldMin = p2.Y;
-            for (int i = 0; i < 14; i++) { Step(s2, Keys.C); heldMin = Math.Min(heldMin, p2.Y); }
+            for (int i = 0; i < 14; i++) { Step(s2, Keys.Z); heldMin = Math.Min(heldMin, p2.Y); }
             for (int i = 0; i < 31; i++) { Step(s2); heldMin = Math.Min(heldMin, p2.Y); }
             float heldH = groundY2 - heldMin;
 
@@ -245,7 +245,7 @@ namespace MonocleSmoke
             Player p = Boot(out Scene s, new Vector2(40f, 100f), false);  // no ar (chao y=160)
             for (int i = 0; i < 3; i++) Step(s);
             int before = p.Dashes;
-            Step(s, Keys.Right, Keys.X);                            // dash no ar consome
+            Step(s, Keys.Right, Keys.C);                            // dash no ar consome
             int during = p.Dashes;
             Settle(s, p);
             for (int i = 0; i < 14; i++) Step(s);                  // assenta + cooldown de refill (0.1s)
@@ -258,8 +258,8 @@ namespace MonocleSmoke
         {
             Player p = Boot(out Scene s, new Vector2(40f, 150f), false);
             Settle(s, p);
-            Step(s, Keys.Right, Keys.X);                            // dash no chao p/ direita
-            Step(s, Keys.Right, Keys.C);                            // pula durante o dash -> super
+            Step(s, Keys.Right, Keys.C);                            // dash no chao p/ direita
+            Step(s, Keys.Right, Keys.Z);                            // pula durante o dash -> super
             Check("Super dash: Speed.X ~ +260 (SuperJumpH)", Near(p.Speed.X, 260f, 12f), "Speed.X=" + p.Speed.X);
             Check("Super dash: Speed.Y ~ -105", Near(p.Speed.Y, JumpSpeed, 8f), "Speed.Y=" + p.Speed.Y);
         }
@@ -269,8 +269,8 @@ namespace MonocleSmoke
             Player p = Boot(out Scene s, new Vector2(40f, 150f), false);
             Settle(s, p);
             Step(s, Keys.Down);                                    // agacha
-            Step(s, Keys.Down, Keys.Right, Keys.X);                // dash agachado
-            Step(s, Keys.Right, Keys.C);                           // pula -> hyper (x1.25 / y0.5)
+            Step(s, Keys.Down, Keys.Right, Keys.C);                // dash agachado
+            Step(s, Keys.Right, Keys.Z);                           // pula -> hyper (x1.25 / y0.5)
             Check("Hyper dash: Speed.X ~ +325 (260 x1.25)", Near(p.Speed.X, 325f, 18f), "Speed.X=" + p.Speed.X);
             Check("Hyper dash: Speed.Y ~ -52.5 (-105 x0.5)", Near(p.Speed.Y, -52.5f, 10f), "Speed.Y=" + p.Speed.Y);
         }
@@ -283,7 +283,7 @@ namespace MonocleSmoke
             p.Position.Y -= 6f;                                    // recoloca no ar
             p.Speed.Y = 140f;                                      // caindo rapido (pouso deterministico)
             bool fired = false;
-            for (int i = 0; i < 8; i++) { Step(s, Keys.C); if (p.Speed.Y < -50f) fired = true; }  // segura C
+            for (int i = 0; i < 8; i++) { Step(s, Keys.Z); if (p.Speed.Y < -50f) fired = true; }  // segura C
             Check("Jump buffer: segurar o pulo no ar dispara ao tocar (buffer 0.08s)", fired, "fired=" + fired);
         }
 
@@ -300,7 +300,7 @@ namespace MonocleSmoke
             Settle(lvl, p);
 
             float xStart = p.X;
-            for (int i = 0; i < 25; i++) Step(lvl, Keys.C);   // pula reto no quininho
+            for (int i = 0; i < 25; i++) Step(lvl, Keys.Z);   // pula reto no quininho
             Check("Corner correction: nudge de +2px no quininho do teto (X 60 -> 62)",
                 p.X == xStart + 2f, "X=" + p.X);
             Check("Corner correction: pulo continua (passa da linha do teto)",
@@ -409,7 +409,7 @@ namespace MonocleSmoke
             Check("Tiles: parede de tiles para o MoveH (Left=16)",
                 p.Left == 16f, "Left=" + p.Left);
 
-            for (int i = 0; i < 3; i++) Step(lvl, Keys.Left, Keys.Z);
+            for (int i = 0; i < 3; i++) Step(lvl, Keys.Left, Keys.V);
             Check("Tiles: agarra a parede de tiles (Climb)",
                 p.StateMachine.State == 1, "state=" + p.StateMachine.State);
         }
@@ -578,11 +578,11 @@ namespace MonocleSmoke
             Check("Booster: entrar joga no estado Boost (4)", boosted,
                 "state=" + p.StateMachine.State);
 
-            for (int i = 0; i < 20 && p.StateMachine.State == 4; i++) Step(lvl, Keys.Right, Keys.X);
+            for (int i = 0; i < 20 && p.StateMachine.State == 4; i++) Step(lvl, Keys.Right, Keys.C);
             float peak = 0f;
             for (int i = 0; i < 10; i++)
             {
-                Step(lvl, Keys.Right, Keys.X);
+                Step(lvl, Keys.Right, Keys.C);
                 peak = Math.Max(peak, p.Speed.Length());
             }
             Check("Booster: dashar de dentro sai do Boost e lanca o player",
@@ -611,7 +611,7 @@ namespace MonocleSmoke
             bool dreaming = false;
             for (int i = 0; i < 60 && !dreaming; i++)
             {
-                Step(lvl, Keys.Right, Keys.X);   // dash p/ a direita, contra o bloco
+                Step(lvl, Keys.Right, Keys.C);   // dash p/ a direita, contra o bloco
                 dreaming = p.StateMachine.State == 9;
             }
             Check("DreamBlock: dashar contra entra no DreamDash (9)", dreaming,
@@ -642,7 +642,7 @@ namespace MonocleSmoke
             Check("SwapBlock: direcao apontando p/ o node", block.Direction.X == 1f,
                 "Direction=" + block.Direction);
 
-            for (int i = 0; i < 5; i++) Step(lvl, Keys.Right, Keys.X);   // dash dispara
+            for (int i = 0; i < 5; i++) Step(lvl, Keys.Right, Keys.C);   // dash dispara
             Check("SwapBlock: dash dispara o bloco (Swapping)",
                 block.Swapping || block.X > x0, "Swapping=" + block.Swapping + " X=" + block.X);
 

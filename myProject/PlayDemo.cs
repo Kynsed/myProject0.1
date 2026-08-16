@@ -5,8 +5,8 @@ using Microsoft.Xna.Framework.Input;
 using Monocle;
 using myProject;
 
-// Demo jogavel: Player real (fisica portada) sobre chao/paredes. Sprites em stub ->
-// desenhamos os hitboxes. Teclado controla via Input. ESC fecha.
+// Demo jogavel: Player real sobre chao/paredes. Sprites em stub -> desenhamos os
+// hitboxes. Teclado e controle via Input (Z pula, X ataca, C dash, ESC pausa).
 namespace MonocleSmoke
 {
     // Desenha o collider de cada entidade (debug visual, sem sprites).
@@ -60,6 +60,32 @@ namespace MonocleSmoke
         }
     }
 
+    // Vinheta da pausa: escurece a tela e escreve PAUSA no centro. Usa a fonte bitmap do
+    // inspector (mesma solucao de texto que o projeto ja tem; nao ha fonte de conteudo).
+    public class PauseRenderer : Renderer
+    {
+        public override void Render(Scene scene)
+        {
+            if (!(scene is PlayScene play) || !play.Paused)
+                return;
+
+            Draw.SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp,
+                DepthStencilState.None, RasterizerState.CullNone, null, Engine.ScreenMatrix);
+            Draw.Rect(0f, 0f, Engine.Width, Engine.Height, Color.Black * 0.55f);
+            if (!myProject.Inspector.UI.GuiFont.Ready)
+                myProject.Inspector.UI.GuiFont.Load(Engine.Instance.GraphicsDevice);
+            if (myProject.Inspector.UI.GuiFont.Ready)
+            {
+                const string text = "PAUSA";
+                int scale = 2;
+                int w = myProject.Inspector.UI.GuiFont.Measure(text, scale);
+                myProject.Inspector.UI.GuiFont.Draw(Draw.SpriteBatch, text,
+                    new Vector2((Engine.Width - w) / 2f, Engine.Height / 2f - 8f), Color.White, scale);
+            }
+            Draw.SpriteBatch.End();
+        }
+    }
+
     public class PlayScene : Level
     {
         public PlayScene()
@@ -76,6 +102,26 @@ namespace MonocleSmoke
             player.Add(new MeleeCombo()); // combate (jogo proprio)
             Add(player);
             Add(new GameCamera());        // camera do metroidvania (jogo proprio)
+            Add(new PauseRenderer());
+        }
+
+        public bool Paused { get; private set; }
+
+        // Pausa: congela as entidades (o jogo inteiro para) mas segue desenhando e
+        // atualizando os renderers, entao o inspector continua utilizavel pausado.
+        public override void Update()
+        {
+            if (Input.Pause.Pressed)
+            {
+                Input.Pause.ConsumeBuffer();
+                Paused = !Paused;
+            }
+            if (Paused)
+            {
+                RendererList.Update();
+                return;
+            }
+            base.Update();
         }
 
         // Como o Level.LoadLevel do Celeste: camera nasce no alvo, sem swoosh inicial.
@@ -152,8 +198,10 @@ namespace MonocleSmoke
             var built = new PlayScene();
             Scene = built;
             pendingShotScene = ScreenshotPath != null ? built : null;
-            Console.WriteLine("Setas: mover | C: pular | X: dash (so horizontal) | Z/V: agarrar (nao escala) | A: atacar (combo x3 no chao, slash solto no ar)");
-            Console.WriteLine("F1: inspector (clique numa entidade) | ESC: sair");
+            ExitOnEscapeKeypress = false;   // ESC agora pausa
+            Console.WriteLine("Teclado: setas movem | Z pula | X ataca | C dash (so horizontal) | ESC pausa | V agarra");
+            Console.WriteLine("Xbox: A pula | X ataca | RT dash | Start pausa | dpad/analogico movem");
+            Console.WriteLine("F1: inspector (clique numa entidade) | fechar a janela p/ sair");
         }
 
         // BitTags (Tags.Persistent etc.) devem existir antes do Scene dimensionar o TagLists.
@@ -233,15 +281,15 @@ namespace MonocleSmoke
                 (int n, Keys[] keys)[] script =
                 {
                     (40, new Keys[0]),                                   // cair/pousar
-                    (5,  new[]{ Keys.X }),                               // dash parado
+                    (5,  new[]{ Keys.C }),                               // dash parado
                     (60, new[]{ Keys.Left }),                            // andar ate parede esq
-                    (20, new[]{ Keys.Left, Keys.Z }),                    // agarrar parede
-                    (30, new[]{ Keys.Left, Keys.Z, Keys.Up }),           // escalar
-                    (3,  new[]{ Keys.Z, Keys.C }),                       // wall jump
-                    (5,  new[]{ Keys.Up, Keys.X }),                      // dash p/ cima
-                    (5,  new[]{ Keys.Right, Keys.X }),                   // dash diagonal
+                    (20, new[]{ Keys.Left, Keys.V }),                    // agarrar parede
+                    (30, new[]{ Keys.Left, Keys.V, Keys.Up }),           // escalar
+                    (3,  new[]{ Keys.V, Keys.Z }),                       // wall jump
+                    (5,  new[]{ Keys.Up, Keys.C }),                      // dash p/ cima
+                    (5,  new[]{ Keys.Right, Keys.C }),                   // dash diagonal
                     (40, new[]{ Keys.Right }),                           // andar
-                    (3,  new[]{ Keys.C }),                               // pular
+                    (3,  new[]{ Keys.Z }),                               // pular
                 };
 
                 int frame = 0;

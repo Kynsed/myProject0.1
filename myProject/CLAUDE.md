@@ -1,10 +1,11 @@
 # myProject
 
-Metroidvania em MonoGame que replica a **precisão e a física de movimento do Celeste**.
-O framework **Monocle** e a física do Player foram portados do código decompilado do Celeste.
+Metroidvania em MonoGame **inspirado no Celeste**, não uma cópia dele. O framework
+**Monocle** e a física do Player nasceram de um port do código decompilado do Celeste —
+essa física é a base do feel e fica, mas o jogo é original e segue o próprio design.
 
-> **O objetivo NÃO é recriar o Celeste.** Só o movimento é fiel; o conteúdo do jogo é
-> podado ou vira andaime. O jogo em si (combate, salas, inimigos) é original.
+> **A fidelidade ao Celeste deixou de ser regra.** O `celeste_source` é referência de
+> consulta, não contrato. Decisões novas seguem o design do metroidvania.
 
 - **Fonte de referência:** `C:\Users\kelvi\OneDrive\Documents\celeste_source` (decompilado, somente leitura)
 - **Stack:** .NET 9, MonoGame 3.8 DesktopGL. Sem outras dependências — manter assim.
@@ -12,15 +13,16 @@ O framework **Monocle** e a física do Player foram portados do código decompil
 
 ## Regra central
 
-Ao portar qualquer coisa do `celeste_source`:
-
-| Afeta mecânica/física de movimento? | O que fazer |
+| Situação | O que fazer |
 |---|---|
-| Sim | Portar **fiel**, bit a bit: mesmas constantes, mesma ordem de operações |
-| Não | Podar ou fazer stub, e **marcar com `// NOTE`** explicando o que saiu e por quê |
+| Mexer no movimento já portado | Pode. Rodar `--parity` e **atualizar os asserts** que o design mudou de propósito |
+| Trazer algo do `celeste_source` | Só se servir ao jogo; adaptar à vontade |
+| Podar/stubar conteúdo herdado | Marcar com `// NOTE` explicando o que saiu e por quê |
 
-Correções de bug em relação ao original vão marcadas com `// FIX`. Hoje há `// NOTE`
-em 41 arquivos — é o rastro que torna o port auditável.
+`--parity` **não é mais auditoria de fidelidade** — é rede de regressão do feel: se um
+assert quebrar sem você ter mudado o movimento de propósito, é bug. Correções de bug em
+relação ao original vão marcadas com `// FIX`; os `// NOTE` em 41 arquivos são o rastro
+do que foi podado.
 
 ### Podas de movimento (design do metroidvania)
 
@@ -37,6 +39,28 @@ desligados por padrão e ligados depois pela progressão (upgrade de personagem)
 Wall jump, wall slide e pegar `Holdable` **continuam** — não passam por `ClimbCheck`.
 `--parity` liga tudo (`Abilities.EnableAll()`): ele audita o port, não o design.
 As podas têm harness próprio (`--poda-test`), que mede portão ligado **e** desligado.
+
+### Input (esquema do jogo)
+
+| Ação | Teclado | Xbox |
+|---|---|---|
+| Mover | setas | d-pad / analógico esquerdo |
+| Pular | **Z** | **A** |
+| Atacar | **X** | **X** |
+| Dash | **C** | **RT** |
+| Pausar | **ESC** | **Start** |
+| Agarrar (Holdable) | V | LT |
+
+Defaults em [`Settings.cs`](Settings.cs) (`SetDefaultKeyboardControls` /
+`SetDefaultGamepadControls`); os `VirtualButton`/`VirtualIntegerAxis` são montados em
+[`Input.cs`](Input.cs), onde ficam os buffers (0.08s em pulo/dash/ataque, **0 na pausa**)
+e as deadzones — mexer neles muda o feel do movimento.
+
+A pausa é do `PlayScene`: congela as entidades e segue atualizando os renderers, então o
+inspector funciona pausado. `Engine.ExitOnEscapeKeypress` foi desligado — ESC pausa, e
+sair é fechar a janela.
+
+**Harnesses usam as teclas reais** (Z/X/C), não as antigas do Celeste.
 
 ### Câmera (sistema próprio)
 
@@ -89,7 +113,8 @@ Modos de execução (`dotnet run -- <modo>`):
 | Modo | O que faz |
 |---|---|
 | `--play` | Demo jogável. F1 abre o inspector; clique seleciona entidade. |
-| `--parity` | **54 asserts** de paridade de movimento vs constantes do Celeste (roda com `Abilities.EnableAll()`) |
+| `--input-test` | **19 asserts** do input (mapeamento teclado/Xbox + efeito + pausa) |
+| `--parity` | **54 asserts** do movimento vs as constantes de origem — rede de regressão do feel (roda com `Abilities.EnableAll()`) |
 | `--poda-test` | **15 asserts** das podas de movimento (dash horizontal, sem wallclimb, golpe p/ cima) |
 | `--combat-test` | **44 asserts** do sistema de combate |
 | `--camera-test` | **41 asserts** da câmera (enquadramento, zoom, descanso, olhar, limites) — inclui o mapa real |
