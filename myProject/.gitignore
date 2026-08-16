@@ -1,0 +1,10 @@
+# Saida de build: regenerada por `dotnet build`, nao vai para o repositorio.
+# Estavam versionados ate 2026-08-15 (75 arquivos) e sujavam todo commit com
+# binario, alem de travar `git checkout` sempre que um build era mais novo.
+bin/
+obj/
+
+# Arquivos de usuario/IDE
+*.user
+*.suo
+.vs/

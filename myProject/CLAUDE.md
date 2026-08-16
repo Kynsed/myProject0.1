@@ -168,17 +168,22 @@ Modos de execução (`dotnet run -- <modo>`):
 | `--player-fuzz` | Player com input injetado (dash/climb/wall-jump) |
 | `--inspector-shot <png>` | Renderiza o inspector e salva PNG do backbuffer |
 
-**Rode a bateria inteira antes de commitar.** Qualquer regressão em `--parity` significa
-que a fidelidade do movimento quebrou.
+**Rode a bateria inteira antes de commitar.** Regressão em `--parity` significa que o
+feel do movimento mudou — se não foi de propósito, é bug.
 
 ## Branches
 
 | Branch | Conteúdo |
 |---|---|
-| `main` | Port completo + combate |
-| `port` | Só o port, **antes** do combate (referência limpa) |
-| `inspector` | `main` + o inspector de runtime |
-| `feature/combat` | Histórico do combate (já mergeado na main) |
+| `main` | Tudo: movimento, combate, câmera, input, arte e som |
+| `input` | Esquema de input + pausa (mergeada na main) |
+| `sprite/anim/sound` | Sprites, áudio e tiles (mergeada na main) |
+| `port` | Só o port do Celeste, antes do combate (referência histórica) |
+| `inspector` | Histórico do inspector de runtime (mergeado) |
+| `feature/combat` | Histórico do combate (mergeado) |
+
+`bin/` e `obj/` **não são versionados** (`.gitignore`). Estiveram até 2026-08-15 — se você
+trocar para uma branch antiga que ainda os rastreia, eles voltam a aparecer.
 
 ## Armadilhas conhecidas
 
