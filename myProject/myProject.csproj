@@ -28,7 +28,7 @@
     <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.*" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Content\**\*.png;Content\**\*.data;Content\**\*.txt">
+    <None Include="Content\**\*.png;Content\**\*.data;Content\**\*.txt;Content\**\*.anim">
     <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

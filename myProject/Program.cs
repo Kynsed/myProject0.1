@@ -24,6 +24,10 @@ if (mode == "--parity")
 {
     Environment.Exit(ParityTest.Run());
 }
+if (mode == "--sprite-test")
+{
+    Environment.Exit(SpriteTest.Run());
+}
 if (mode == "--input-test")
 {
     Environment.Exit(InputTest.Run());

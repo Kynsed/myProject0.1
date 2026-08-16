@@ -40,6 +40,25 @@ Wall jump, wall slide e pegar `Holdable` **continuam** — não passam por `Clim
 `--parity` liga tudo (`Abilities.EnableAll()`): ele audita o port, não o design.
 As podas têm harness próprio (`--poda-test`), que mede portão ligado **e** desligado.
 
+### Sprites e arte
+
+Arte são **PNGs soltos** em `Content/Graphics/**` — `Atlas.FromDirectory` indexa por
+caminho relativo sem extensão e `VirtualTexture` carrega `.png` direto. Sem ferramenta de
+empacotamento, sem metadados para manter: trocar a arte é trocar o PNG. Frames de
+animação usam sufixo numérico (`idle00.png`, `idle01.png` → `GetAtlasSubtextures("player/idle")`).
+
+Animações vêm de [`Content/Graphics/player.anim`](Content/Graphics/player.anim), formato
+próprio em texto (ver [`SpriteBank.cs`](SpriteBank.cs)): `origin`, `anim <id> <fps> <loop|once> <path>`
+e `alias <id> <destino>`.
+
+**Por que existe alias:** o Player herdado do port chama `Sprite.Play` com **41 ids**
+(`runFast`, `dreamDashIn`, `swimUp`…) e id inexistente **joga exceção**. Os ids sem arte
+caem num alias — 9 animações reais cobrem os 41. `--sprite-test` lê os ids direto do
+`Player.cs`, então id novo no código quebra a bateria até ganhar arte ou alias.
+
+Hoje a arte é **placeholder** (retângulos coloridos, um por estado). O hitbox continua
+desenhado por cima porque o cenário ainda não tem arte; **F2** liga/desliga.
+
 ### Input (esquema do jogo)
 
 | Ação | Teclado | Xbox |
@@ -94,6 +113,7 @@ atualiza durante ela e se re-sincroniza depois, sem pulo.
 Monocle/          Engine portada (71 arquivos). Auditada token-a-token vs o source.
 *.cs (raiz)       Classes do jogo (69). Port fiel de movimento + stubs de conteúdo.
 Inspector/        Ferramenta própria de inspeção em runtime (não é port).
+Content/Graphics/ Arte: PNGs soltos + player.anim (banco de animações).
 Content/map.txt   Mapa do demo no formato próprio (ver RoomMap.cs).
                   Salas de 384px de altura (tela = 180): sem essa folga a câmera
                   fica presa no clamp e não centra o player.
@@ -113,7 +133,8 @@ Modos de execução (`dotnet run -- <modo>`):
 | Modo | O que faz |
 |---|---|
 | `--play` | Demo jogável. F1 abre o inspector; clique seleciona entidade. |
-| `--input-test` | **19 asserts** do input (mapeamento teclado/Xbox + efeito + pausa) |
+| `--input-test` | **26 asserts** do input (mapeamento + efeito no teclado e no Xbox + pausa) |
+| `--sprite-test` | **9 asserts** do banco de animações, da arte e do contrato de ids do Player |
 | `--parity` | **54 asserts** do movimento vs as constantes de origem — rede de regressão do feel (roda com `Abilities.EnableAll()`) |
 | `--poda-test` | **15 asserts** das podas de movimento (dash horizontal, sem wallclimb, golpe p/ cima) |
 | `--combat-test` | **44 asserts** do sistema de combate |

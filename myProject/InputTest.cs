@@ -36,8 +36,11 @@ namespace MonocleSmoke
             TestTeclado();
             TestGamepad();
 
-            Console.WriteLine("-- efeito no jogo --");
+            Console.WriteLine("-- efeito no jogo (teclado) --");
             TestAcoesRespondem();
+
+            Console.WriteLine("-- efeito no jogo (xbox) --");
+            TestGamepadResponde();
 
             Console.WriteLine("-- pausa --");
             TestPausa();
@@ -132,6 +135,68 @@ namespace MonocleSmoke
             Check("A (esquema antigo) nao ataca mais", !c4.Attacking, "Attacking=" + c4.Attacking);
         }
 
+        // Injeta um estado de controle (o mesmo caminho que MInput.Update alimenta com
+        // GamePad.GetState no jogo real) e roda um frame.
+        private static void StepPad(Scene scene, GamePadState pad)
+        {
+            MInput.Keyboard.PreviousState = MInput.Keyboard.CurrentState;
+            MInput.Keyboard.CurrentState = new KeyboardState();
+            MInput.GamePadData gp = MInput.GamePads[0];
+            gp.PreviousState = gp.CurrentState;
+            gp.CurrentState = pad;
+            foreach (VirtualInput vi in MInput.VirtualInputs) vi.Update();
+            scene.BeforeUpdate();
+            scene.Update();
+            scene.AfterUpdate();
+        }
+
+        private static GamePadState Pad(Buttons buttons = 0, float rightTrigger = 0f,
+            float stickX = 0f, bool dpadLeft = false)
+        {
+            return new GamePadState(
+                new GamePadThumbSticks(new Vector2(stickX, 0f), Vector2.Zero),
+                new GamePadTriggers(0f, rightTrigger),
+                new GamePadButtons(buttons),
+                new GamePadDPad(ButtonState.Released, ButtonState.Released,
+                    dpadLeft ? ButtonState.Pressed : ButtonState.Released, ButtonState.Released));
+        }
+
+        // Exercita o caminho do controle de verdade: binding -> MInput.GamePads[0] ->
+        // VirtualButton -> acao. O que fica de fora e so a camada de driver (SDL/MonoGame
+        // enxergar o controle), que precisa de hardware.
+        private static void TestGamepadResponde()
+        {
+            var (lvl, p, combo) = Boot();
+            StepPad(lvl, Pad(Buttons.A));
+            Check("Xbox: A pula de verdade (Speed.Y negativo)", p.Speed.Y < -50f,
+                "Speed.Y=" + p.Speed.Y);
+
+            var (l2, p2, c2) = Boot();
+            StepPad(l2, Pad(rightTrigger: 1f, dpadLeft: true));
+            Check("Xbox: RT dasha de verdade (estado Dash)", p2.StateMachine.State == 2,
+                "state=" + p2.StateMachine.State);
+
+            var (l3, p3, c3) = Boot();
+            StepPad(l3, Pad(Buttons.X));
+            Check("Xbox: X ataca de verdade (combo dispara)", c3.Attacking,
+                "Attacking=" + c3.Attacking);
+
+            var (l4, p4, c4) = Boot();
+            for (int i = 0; i < 6; i++) StepPad(l4, Pad(dpadLeft: true));
+            bool andouDpad = p4.Speed.X < -20f;
+            var (l5, p5, c5) = Boot();
+            for (int i = 0; i < 6; i++) StepPad(l5, Pad(stickX: -1f));
+            Check("Xbox: dpad e analogico esquerdo movem",
+                andouDpad && p5.Speed.X < -20f,
+                "dpad Speed.X=" + p4.Speed.X + " analogico Speed.X=" + p5.Speed.X);
+
+            // RT abaixo do limiar do VirtualButton (0.2) nao pode disparar o dash
+            var (l6, p6, c6) = Boot();
+            StepPad(l6, Pad(rightTrigger: 0.1f, dpadLeft: true));
+            Check("Xbox: RT mal encostado nao dasha (limiar 0.2)", p6.StateMachine.State != 2,
+                "state=" + p6.StateMachine.State);
+        }
+
         // ---- pausa ----
         private static void TestPausa()
         {
@@ -157,6 +222,12 @@ namespace MonocleSmoke
 
             for (int i = 0; i < 30; i++) Step(play);
             Check("Despausado, o jogo volta a rodar (player cai)", p.Y > y, "dY=" + (p.Y - y));
+
+            StepPad(play, Pad(Buttons.Start));
+            Check("Xbox: Start pausa de verdade", play.Paused, "Paused=" + play.Paused);
+            StepPad(play, Pad());
+            StepPad(play, Pad(Buttons.Start));
+            Check("Xbox: Start de novo despausa", !play.Paused, "Paused=" + play.Paused);
         }
     }
 }

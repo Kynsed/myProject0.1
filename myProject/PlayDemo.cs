@@ -53,9 +53,27 @@ namespace MonocleSmoke
                     continue;
                 }
 
-                Color c = (e is Player) ? Color.Red : ((e is Solid) ? Color.LightGray : Color.Yellow);
+                // com sprite na tela o contorno do player vira so referencia
+                Color c = (e is Player) ? Color.Red * 0.5f : ((e is Solid) ? Color.LightGray : Color.Yellow);
                 e.Collider.Render(cam, c);
             }
+            Draw.SpriteBatch.End();
+        }
+    }
+
+    // Desenha o mundo: entidades com sprite (hoje so o Player), pela camera do Level.
+    public class SpriteRenderer : Renderer
+    {
+        private static readonly Camera fallback = new Camera();
+
+        public override void Render(Scene scene)
+        {
+            if (!GFX.Loaded)
+                return;
+            Camera cam = (scene is Level lvl) ? lvl.Camera : fallback;
+            Draw.SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp,
+                DepthStencilState.None, RasterizerState.CullNone, null, cam.Matrix * Engine.ScreenMatrix);
+            scene.Entities.Render();
             Draw.SpriteBatch.End();
         }
     }
@@ -92,7 +110,10 @@ namespace MonocleSmoke
         {
             // Mundo carregado de Content/map.txt (RoomMap): 2 salas em tiles conectadas pela
             // borda x=640. Cruzar a direita dispara a transicao fiel (glide + pan + refil).
-            Add(new HitboxRenderer());
+            Add(new SpriteRenderer());
+            // F2 liga/desliga. Fica ligado por padrao enquanto o CENARIO nao tem arte:
+            // sem os hitboxes dos tiles a tela fica preta em volta do player
+            Add(hitboxes = new HitboxRenderer());
             Add(new myProject.Inspector.InspectorRenderer()); // F1 abre o inspector
             RoomMap.Load(this, System.IO.File.ReadAllLines(
                 System.IO.Path.Combine(AppContext.BaseDirectory, "Content", "map.txt")));
@@ -107,10 +128,27 @@ namespace MonocleSmoke
 
         public bool Paused { get; private set; }
 
+        // Avisa no console quando um controle entra/sai: o mapeamento e testavel headless,
+        // mas se o SDL/MonoGame enxerga o aparelho so da p/ saber rodando.
+        private bool padAttached;
+        private readonly HitboxRenderer hitboxes;
+
         // Pausa: congela as entidades (o jogo inteiro para) mas segue desenhando e
         // atualizando os renderers, entao o inspector continua utilizavel pausado.
         public override void Update()
         {
+            bool pad = MInput.GamePads[Input.Gamepad].Attached;
+            if (pad != padAttached)
+            {
+                padAttached = pad;
+                Console.WriteLine(pad
+                    ? "controle " + Input.Gamepad + " conectado (A pula | X ataca | RT dash | Start pausa)"
+                    : "controle " + Input.Gamepad + " desconectado");
+            }
+
+            if (MInput.Keyboard.Pressed(Keys.F2) && hitboxes != null)
+                hitboxes.Visible = !hitboxes.Visible;   // debug: hitboxes por cima da arte
+
             if (Input.Pause.Pressed)
             {
                 Input.Pause.ConsumeBuffer();
@@ -194,6 +232,7 @@ namespace MonocleSmoke
             Input.Initialize();
             InitTags();
             Abilities.ResetToDefaults();   // jogo: dash so horizontal, sem escalar parede
+            GFX.Load();                    // atlas + banco de animacoes (antes de criar o Player)
             // Engine.Scene so troca no fim do Update: guarda a referencia p/ preparar o shot
             var built = new PlayScene();
             Scene = built;

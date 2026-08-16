@@ -245,6 +245,19 @@ namespace Monocle
             };
         }
 
+        // NOTE (jogo proprio): animacao que termina e SEGURA o ultimo frame (Goto null).
+        // O Celeste sempre encadeia com um "into"; o banco de sprites daqui precisa do
+        // caso "toca uma vez e para" (pulo, dash, golpe).
+        public void Add(string id, float delay, params MTexture[] frames)
+        {
+            animations[id] = new Animation()
+            {
+                Delay = delay,
+                Frames = frames,
+                Goto = null
+            };
+        }
+
         public void Add(string id, float delay, string into, params MTexture[] frames)
         {
             animations[id] = new Animation()
