@@ -253,6 +253,7 @@ namespace myProject
 
         private void SpawnHitbox(Vector2 dir, float activeTime)
         {
+            Audio.Play("attack", player.Center);   // som nasce com a hitbox, nao no aperto
             currentAttack = new AttackHitbox(player, this, dir, Stage, activeTime, Damage[Stage]);
             Scene.Add(currentAttack);
         }

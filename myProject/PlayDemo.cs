@@ -233,11 +233,14 @@ namespace MonocleSmoke
             InitTags();
             Abilities.ResetToDefaults();   // jogo: dash so horizontal, sem escalar parede
             GFX.Load();                    // atlas + banco de animacoes (antes de criar o Player)
+            Audio.Load();                  // WAVs + banco de sons
             // Engine.Scene so troca no fim do Update: guarda a referencia p/ preparar o shot
             var built = new PlayScene();
             Scene = built;
             pendingShotScene = ScreenshotPath != null ? built : null;
             ExitOnEscapeKeypress = false;   // ESC agora pausa
+            Console.WriteLine("arte: " + (GFX.Loaded ? "carregada" : "ausente")
+                + " | audio: " + (Audio.Available ? "carregado" : "sem dispositivo/arquivos"));
             Console.WriteLine("Teclado: setas movem | Z pula | X ataca | C dash (so horizontal) | ESC pausa | V agarra");
             Console.WriteLine("Xbox: A pula | X ataca | RT dash | Start pausa | dpad/analogico movem");
             Console.WriteLine("F1: inspector (clique numa entidade) | fechar a janela p/ sair");

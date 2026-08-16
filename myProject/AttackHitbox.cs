@@ -77,6 +77,7 @@ namespace myProject
                 {
                     alreadyHit.Add(target);
                     health.Damage(Damage);
+                    Audio.Play("hit", target.Center);
                     if (!recoiled)
                     {
                         recoiled = true;

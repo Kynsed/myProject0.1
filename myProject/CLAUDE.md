@@ -59,6 +59,21 @@ caem num alias — 9 animações reais cobrem os 41. `--sprite-test` lê os ids 
 Hoje a arte é **placeholder** (retângulos coloridos, um por estado). O hitbox continua
 desenhado por cima porque o cenário ainda não tem arte; **F2** liga/desliga.
 
+### Áudio
+
+`SoundEffect` nativo do MonoGame — **sem FMOD** (o shim `FmodStub.cs` saiu e o
+`EventInstance` virou [`SoundHandle`](SoundHandle.cs)). WAVs soltos em `Content/Audio/`
+mais o banco [`sounds.txt`](Content/Audio/sounds.txt): `sound <nome> <arquivo> [volume]`,
+`alias`, `loop`.
+
+Mesmo padrão dos sprites: o código herdado pede som por nome de evento do FMOD
+(`event:/char/madeline/jump`), e **49 eventos caem em 10 sons** por alias. `--audio-test`
+varre os `.cs` do jogo, então evento novo no código quebra a bateria até ganhar alias.
+
+Tudo tolera não haver dispositivo de áudio: `SoundHandle` sem instância é válido e mudo,
+e `Audio.Available` diz se carregou. [`SoundSource`](SoundSource.cs) segue a entidade
+(pan pela câmera) e morre com ela. Os sons são **placeholder** (tons sintetizados).
+
 ### Input (esquema do jogo)
 
 | Ação | Teclado | Xbox |
@@ -114,13 +129,14 @@ Monocle/          Engine portada (71 arquivos). Auditada token-a-token vs o sour
 *.cs (raiz)       Classes do jogo (69). Port fiel de movimento + stubs de conteúdo.
 Inspector/        Ferramenta própria de inspeção em runtime (não é port).
 Content/Graphics/ Arte: PNGs soltos + player.anim (banco de animações).
+Content/Audio/    Som: WAVs soltos + sounds.txt (banco de sons).
 Content/map.txt   Mapa do demo no formato próprio (ver RoomMap.cs).
                   Salas de 384px de altura (tela = 180): sem essa folga a câmera
                   fica presa no clamp e não centra o player.
 ```
 
 Namespaces: `Monocle` (engine), `myProject` (jogo), `myProject.Inspector.*` (ferramenta),
-`MonocleSmoke` (harnesses e testes), `FMOD.Studio` (shim de 1 classe).
+`MonocleSmoke` (harnesses e testes).
 
 ## Comandos
 
@@ -135,6 +151,7 @@ Modos de execução (`dotnet run -- <modo>`):
 | `--play` | Demo jogável. F1 abre o inspector; clique seleciona entidade. |
 | `--input-test` | **26 asserts** do input (mapeamento + efeito no teclado e no Xbox + pausa) |
 | `--sprite-test` | **9 asserts** do banco de animações, da arte e do contrato de ids do Player |
+| `--audio-test` | **11 asserts** do banco de sons, dos arquivos e do contrato de eventos |
 | `--parity` | **54 asserts** do movimento vs as constantes de origem — rede de regressão do feel (roda com `Abilities.EnableAll()`) |
 | `--poda-test` | **15 asserts** das podas de movimento (dash horizontal, sem wallclimb, golpe p/ cima) |
 | `--combat-test` | **44 asserts** do sistema de combate |

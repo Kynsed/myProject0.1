@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using FMOD.Studio;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Monocle;
@@ -5599,7 +5598,7 @@ namespace myProject
 			yield break;
 		}
 
-		public EventInstance Play(string sound, string param = null, float value = 0f)
+		public SoundHandle Play(string sound, string param = null, float value = 0f)
 		{
 			float value2 = 0f;
 			Level level = base.Scene as Level;
@@ -6140,7 +6139,7 @@ namespace myProject
 
 		private List<Player.ChaserStateSound> activeSounds = new List<Player.ChaserStateSound>();
 
-		private EventInstance idleSfx;
+		private SoundHandle idleSfx;
 
 		public bool MuffleLanding;
 
@@ -6222,7 +6221,7 @@ namespace myProject
 
 		private const float SpacePhysicsMult = 0.6f;
 
-		private EventInstance conveyorLoopSfx;
+		private SoundHandle conveyorLoopSfx;
 
 		private const float WallBoosterSpeed = -160f;
 
