@@ -4,16 +4,21 @@ using Monocle;
 
 namespace myProject
 {
-    // Port fiel do subset de movimento do SolidTiles do Celeste: geometria da sala como
-    // Solid com collider Grid 8x8 construido de VirtualMap<char> ('0' = vazio).
-    // Flags fieis: Tags.Global, Depth -10000, EnableAssistModeChecks=false, AllowStaticMovers=false.
-    // NOTE: podas de conteudo — Autotiler/TileGrid/AnimatedTiles (visual; o hitbox e desenhado
-    // pelo HitboxRenderer) e SurfaceSoundIndexAt (som de superficie por tile).
+    // Geometria da sala: Solid com collider Grid 8x8 construido de VirtualMap<char>
+    // ('0' = vazio). Flags vindas do port: Tags.Global, Depth -10000,
+    // EnableAssistModeChecks=false, AllowStaticMovers=false.
+    //
+    // Visual: TileGrid (Monocle) populado pelo Autotiler proprio. Nasce so quando ha
+    // atlas carregado — harness headless segue sem visual. Fica Visible=false porque
+    // quem desenha e o TileRenderer, antes das entidades (senao o tile, com Depth
+    // -10000, cobriria o player).
+    // NOTE: poda de conteudo — AnimatedTiles e SurfaceSoundIndexAt (som por tile).
     [Tracked(false)]
     public class SolidTiles : Solid
     {
         public Grid Grid;
         public VirtualMap<char> tileTypes;
+        public TileGrid Visual;
 
         public SolidTiles(Vector2 position, VirtualMap<char> data)
             : base(position, 0f, 0f, true)
@@ -38,6 +43,21 @@ namespace myProject
                                 Grid[x, y] = true;
                 }
             }
+
+            BuildVisual();
+        }
+
+        // Monta o TileGrid a partir da mascara de vizinhanca. Sem tileset carregado
+        // (headless) fica sem visual e o hitbox continua sendo o unico desenho.
+        public void BuildVisual()
+        {
+            if (GFX.Tiles == null)
+                return;
+
+            Visual = new TileGrid(8, 8, tileTypes.Columns, tileTypes.Rows);
+            Visual.Visible = false;   // quem desenha e o TileRenderer
+            Visual.Populate(GFX.Tiles, Autotiler.Build(tileTypes));
+            Add(Visual);
         }
     }
 }

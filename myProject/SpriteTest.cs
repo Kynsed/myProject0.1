@@ -41,6 +41,10 @@ namespace MonocleSmoke
             Console.WriteLine("-- arte --");
             TestArquivosDeArte();
 
+            Console.WriteLine("-- tiles (autotile) --");
+            TestAutotiler();
+            TestTilesDoMapaReal();
+
             Console.WriteLine("-- player sem arte (headless) --");
             TestFallbackSemAtlas();
 
@@ -142,6 +146,91 @@ namespace MonocleSmoke
             }
             Check("Arte: toda animacao do banco tem pelo menos o frame 00",
                 faltando.Count == 0, "sem arte=" + string.Join(",", faltando));
+        }
+
+        // Mapa de teste 3x3 com o miolo cheio:
+        //   . . .
+        //   . # .   -> a celula do meio nao tem vizinho nenhum
+        //   . . .
+        private static VirtualMap<char> Mapa(string[] rows)
+        {
+            var map = new VirtualMap<char>(rows[0].Length, rows.Length, '0');
+            for (int y = 0; y < rows.Length; y++)
+                for (int x = 0; x < rows[y].Length; x++)
+                    map[x, y] = rows[y][x] == '#' ? '1' : '0';
+            return map;
+        }
+
+        private static void TestAutotiler()
+        {
+            // 5x5 cheio: o miolo tem os 4 vizinhos
+            var cheio = Mapa(new[] { "#####", "#####", "#####", "#####", "#####" });
+            Check("Autotile: celula cercada usa o tile sem bordas (mascara 15)",
+                Autotiler.MaskAt(cheio, 2, 2) == 15, "mascara=" + Autotiler.MaskAt(cheio, 2, 2));
+
+            // topo do chao: sem vizinho em cima (N desligado) => 14
+            var chao = Mapa(new[] { ".....", "#####", "#####" });
+            Check("Autotile: topo do chao ganha borda so em cima (mascara 14)",
+                Autotiler.MaskAt(chao, 2, 1) == 14, "mascara=" + Autotiler.MaskAt(chao, 2, 1));
+
+            Check("Autotile: celula vazia nao vira tile",
+                Autotiler.MaskAt(chao, 2, 0) == Autotiler.Empty,
+                "valor=" + Autotiler.MaskAt(chao, 2, 0));
+
+            // bloco solto no meio: nenhum vizinho => 0 (borda nos 4 lados)
+            var solto = Mapa(new[] { ".....", "..#..", "....." });
+            Check("Autotile: bloco isolado leva borda nos 4 lados (mascara 0)",
+                Autotiler.MaskAt(solto, 2, 1) == 0, "mascara=" + Autotiler.MaskAt(solto, 2, 1));
+
+            // fora do mapa conta como cheio: a celula do canto nao ganha borda externa
+            var canto = Mapa(new[] { "##", "##" });
+            Check("Autotile: fora do mapa conta como solido (borda de sala nao vira casca)",
+                Autotiler.MaskAt(canto, 0, 0) == 15, "mascara=" + Autotiler.MaskAt(canto, 0, 0));
+
+            int[,] tiles = Autotiler.Build(chao);
+            int cheias = 0;
+            foreach (int t in tiles)
+                if (t != Autotiler.Empty)
+                    cheias++;
+            Check("Autotile: Build cobre exatamente as celulas solidas", cheias == 10,
+                "solidas=" + cheias);
+        }
+
+        // O mapa do jogo tem que virar visual de verdade quando ha tileset carregado.
+        // Headless nao ha, entao o que da p/ medir aqui e o inverso: sem tileset o
+        // SolidTiles nasce sem visual e nada quebra.
+        private static void TestTilesDoMapaReal()
+        {
+            string path = Path.Combine(AppContext.BaseDirectory, "Content", "map.txt");
+            if (!File.Exists(path))
+            {
+                Check("Tiles: Content/map.txt existe", false, path);
+                return;
+            }
+            Level lvl = new Level();
+            RoomMap.Load(lvl, File.ReadAllLines(path));
+            lvl.Bounds = lvl.Rooms[0];
+            lvl.Begin(); lvl.BeforeUpdate();
+
+            var solids = lvl.Tracker.GetEntities<SolidTiles>();
+            Check("Tiles: o mapa vira SolidTiles", solids.Count > 0, "salas=" + solids.Count);
+
+            var st = (SolidTiles)solids[0];
+            int[,] tiles = Autotiler.Build(st.tileTypes);
+            int cheias = 0, comBorda = 0;
+            foreach (int t in tiles)
+            {
+                if (t == Autotiler.Empty)
+                    continue;
+                cheias++;
+                if (t != 15)
+                    comBorda++;
+            }
+            Check("Tiles: o mapa real gera tiles e nem todos sao miolo",
+                cheias > 100 && comBorda > 10,
+                "solidas=" + cheias + " com borda=" + comBorda);
+            Check("Tiles: sem tileset (headless) o SolidTiles nasce sem visual",
+                st.Visual == null, "visual=" + (st.Visual == null ? "null" : "criado"));
         }
 
         // Sem GraphicsDevice nao ha atlas: o PlayerSprite tem que continuar aceitando

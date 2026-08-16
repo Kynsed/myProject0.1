@@ -61,6 +61,29 @@ namespace MonocleSmoke
         }
     }
 
+    // Desenha o cenario (TileGrid de cada SolidTiles) ANTES das entidades: o SolidTiles
+    // tem Depth -10000, entao no passe das entidades ele cobriria o player.
+    public class TileRenderer : Renderer
+    {
+        public override void Render(Scene scene)
+        {
+            if (!(scene is Level lvl) || GFX.Tiles == null)
+                return;
+
+            Draw.SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp,
+                DepthStencilState.None, RasterizerState.CullNone, null, lvl.Camera.Matrix * Engine.ScreenMatrix);
+            foreach (Entity e in scene.Tracker.GetEntities<SolidTiles>())
+            {
+                SolidTiles tiles = (SolidTiles)e;
+                if (tiles.Visual == null)
+                    continue;
+                tiles.Visual.ClipCamera = lvl.Camera;   // desenha so o que cabe na tela
+                tiles.Visual.RenderAt(tiles.Position);
+            }
+            Draw.SpriteBatch.End();
+        }
+    }
+
     // Desenha o mundo: entidades com sprite (hoje so o Player), pela camera do Level.
     public class SpriteRenderer : Renderer
     {
@@ -110,10 +133,10 @@ namespace MonocleSmoke
         {
             // Mundo carregado de Content/map.txt (RoomMap): 2 salas em tiles conectadas pela
             // borda x=640. Cruzar a direita dispara a transicao fiel (glide + pan + refil).
+            Add(new TileRenderer());
             Add(new SpriteRenderer());
-            // F2 liga/desliga. Fica ligado por padrao enquanto o CENARIO nao tem arte:
-            // sem os hitboxes dos tiles a tela fica preta em volta do player
-            Add(hitboxes = new HitboxRenderer());
+            // com cenario e player desenhados, o hitbox vira debug puro (F2)
+            Add(hitboxes = new HitboxRenderer { Visible = !GFX.Loaded });
             Add(new myProject.Inspector.InspectorRenderer()); // F1 abre o inspector
             RoomMap.Load(this, System.IO.File.ReadAllLines(
                 System.IO.Path.Combine(AppContext.BaseDirectory, "Content", "map.txt")));

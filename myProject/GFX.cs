@@ -17,6 +17,8 @@ namespace myProject
         public const string GraphicsDir = "Graphics";
 
         public static Atlas Game;
+        // fita de 16 tiles indexada pela mascara de vizinhanca (ver Autotiler)
+        public static Tileset Tiles;
         // nunca null: sem arte carregada e um banco vazio, e quem pede animacao cai no
         // fallback do PlayerSprite (harness headless cria Player sem passar por Load)
         public static SpriteBank SpriteBank = new SpriteBank();
@@ -35,6 +37,8 @@ namespace myProject
                 return;
 
             Game = Atlas.FromDirectory(GraphicsDir);
+            if (Game.Has("tiles/rock"))
+                Tiles = new Tileset(Game["tiles/rock"], 8, 8);
 
             string bank = Path.Combine(Engine.ContentDirectory, GraphicsDir, "player.anim");
             if (File.Exists(bank))
@@ -45,6 +49,7 @@ namespace myProject
         {
             Game?.Dispose();
             Game = null;
+            Tiles = null;
             SpriteBank = null;
         }
 

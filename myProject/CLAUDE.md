@@ -56,8 +56,14 @@ e `alias <id> <destino>`.
 caem num alias — 9 animações reais cobrem os 41. `--sprite-test` lê os ids direto do
 `Player.cs`, então id novo no código quebra a bateria até ganhar arte ou alias.
 
-Hoje a arte é **placeholder** (retângulos coloridos, um por estado). O hitbox continua
-desenhado por cima porque o cenário ainda não tem arte; **F2** liga/desliga.
+**Tiles:** [`Autotiler.cs`](Autotiler.cs) escolhe o tile pela vizinhança — máscara de 4
+bits (N=1, E=2, S=4, W=8), bit ligado = vizinho sólido, e o índice **é** a máscara (fita
+de 16 tiles). Fora do mapa conta como sólido, senão a borda da sala vira casca grossa.
+O `SolidTiles` monta um `TileGrid` (Monocle) com isso; quem desenha é o `TileRenderer`,
+**antes** das entidades — o `SolidTiles` tem `Depth -10000` e cobriria o player.
+
+Arte e som são **placeholder** (retângulos coloridos por estado, tileset de rocha, tons
+sintetizados). **F2** liga os hitboxes por cima.
 
 ### Áudio
 
@@ -150,7 +156,7 @@ Modos de execução (`dotnet run -- <modo>`):
 |---|---|
 | `--play` | Demo jogável. F1 abre o inspector; clique seleciona entidade. |
 | `--input-test` | **26 asserts** do input (mapeamento + efeito no teclado e no Xbox + pausa) |
-| `--sprite-test` | **9 asserts** do banco de animações, da arte e do contrato de ids do Player |
+| `--sprite-test` | **18 asserts** de animações, arte, autotile dos tiles e contrato de ids do Player |
 | `--audio-test` | **11 asserts** do banco de sons, dos arquivos e do contrato de eventos |
 | `--parity` | **54 asserts** do movimento vs as constantes de origem — rede de regressão do feel (roda com `Abilities.EnableAll()`) |
 | `--poda-test` | **15 asserts** das podas de movimento (dash horizontal, sem wallclimb, golpe p/ cima) |
