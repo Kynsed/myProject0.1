@@ -60,8 +60,11 @@ namespace Monocle
             }
 
             // split long lines
+            // FIX: Draw.DefaultFont pode ser null — o asset Content/Monocle/MonocleDefault.xnb
+            // nao existe neste port e Draw.Initialize engole a falha. Sem fonte nao da p/ medir
+            // texto: pula a quebra e guarda a linha inteira (o log continua registrando).
             int maxWidth = Engine.Instance.Window.ClientBounds.Width - 40;
-            while (Draw.DefaultFont.MeasureString(str).X > maxWidth)
+            while (Draw.DefaultFont != null && Draw.DefaultFont.MeasureString(str).X > maxWidth)
             {
                 int split = -1;
                 for (int i = 0; i < str.Length; i++)
@@ -371,21 +374,30 @@ namespace Monocle
             int screenWidth = Engine.ViewWidth;
             int screenHeight = Engine.ViewHeight;
 
+            // FIX: sem DefaultFont (ver Log acima) o DrawString lancaria NullReference e
+            // derrubaria o jogo ao abrir o console. Os paineis continuam sendo desenhados —
+            // o console segue aceitando e executando comandos, so o texto nao aparece.
+            bool hasFont = Draw.DefaultFont != null;
+
             Draw.SpriteBatch.Begin();
 
             Draw.Rect(10, screenHeight - 50, screenWidth - 20, 40, Color.Black * OPACITY);
 
-            if (underscore)
-                Draw.SpriteBatch.DrawString(Draw.DefaultFont, ">" + currentText + "_", new Vector2(20, screenHeight - 42), Color.White);
-            else
-                Draw.SpriteBatch.DrawString(Draw.DefaultFont, ">" + currentText, new Vector2(20, screenHeight - 42), Color.White);
+            if (hasFont)
+            {
+                if (underscore)
+                    Draw.SpriteBatch.DrawString(Draw.DefaultFont, ">" + currentText + "_", new Vector2(20, screenHeight - 42), Color.White);
+                else
+                    Draw.SpriteBatch.DrawString(Draw.DefaultFont, ">" + currentText, new Vector2(20, screenHeight - 42), Color.White);
+            }
 
             if (drawCommands.Count > 0)
             {
                 int height = 10 + (30 * drawCommands.Count);
                 Draw.Rect(10, screenHeight - height - 60, screenWidth - 20, height, Color.Black * OPACITY);
-                for (int i = 0; i < drawCommands.Count; i++)
-                    Draw.SpriteBatch.DrawString(Draw.DefaultFont, drawCommands[i].Text, new Vector2(20, screenHeight - 92 - (30 * i)), drawCommands[i].Color);
+                if (hasFont)
+                    for (int i = 0; i < drawCommands.Count; i++)
+                        Draw.SpriteBatch.DrawString(Draw.DefaultFont, drawCommands[i].Text, new Vector2(20, screenHeight - 92 - (30 * i)), drawCommands[i].Color);
             }
 
             Draw.SpriteBatch.End();
