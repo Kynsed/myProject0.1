@@ -1,81 +1,11 @@
 using System;
-using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Monocle;
 using myProject;
 
-// Demo jogavel: Player real (fisica portada) sobre chao/paredes. Sprites em stub ->
-// desenhamos os hitboxes. Teclado controla via Input. ESC fecha.
+// Harnesses headless do Player (sem janela). A cena de jogo vive em PlayScene.cs.
 namespace MonocleSmoke
 {
-    // Desenha o collider de cada entidade (debug visual, sem sprites).
-    // Renderiza pela camera do Level — e o Player.Update quem a move (lerp fiel do Celeste).
-    public class HitboxRenderer : Renderer
-    {
-        private static readonly Camera fallback = new Camera();
-
-        public override void Render(Scene scene)
-        {
-            Camera cam = (scene is Level lvl) ? lvl.Camera : fallback;
-            Draw.SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp,
-                DepthStencilState.None, RasterizerState.CullNone, null, cam.Matrix * Engine.ScreenMatrix);
-            foreach (Entity e in scene.Entities)
-            {
-                if (e.Collider == null)
-                    continue;
-                Color c = (e is Player) ? Color.Red : ((e is Solid) ? Color.LightGray : Color.Yellow);
-                e.Collider.Render(cam, c);
-            }
-            Draw.SpriteBatch.End();
-        }
-    }
-
-    public class PlayScene : Level
-    {
-        public PlayScene()
-        {
-            // Mundo carregado de Content/map.txt (RoomMap): 2 salas em tiles conectadas pela
-            // borda x=640. Cruzar a direita dispara a transicao fiel (glide + pan + refil).
-            Add(new HitboxRenderer());
-            RoomMap.Load(this, System.IO.File.ReadAllLines(
-                System.IO.Path.Combine(AppContext.BaseDirectory, "Content", "map.txt")));
-            Bounds = Rooms[0];
-            Session.RespawnPoint = new Vector2(60f, 210f);
-            Add(new Player(new Vector2(60f, 210f), PlayerSpriteMode.Madeline));
-        }
-
-        // Como o Level.LoadLevel do Celeste: camera nasce no alvo, sem swoosh inicial.
-        public override void Begin()
-        {
-            base.Begin();
-            Entities.UpdateLists();
-            Player p = Tracker.GetEntity<Player>();
-            if (p != null)
-                Camera.Position = p.CameraTarget;
-        }
-    }
-
-    public class PlayGame : Engine
-    {
-        public PlayGame() : base(320, 180, 1280, 720, "myProject", false, true) { }
-
-        protected override void Initialize()
-        {
-            base.Initialize();
-            Input.Initialize();
-            InitTags();
-            Scene = new PlayScene();
-            Console.WriteLine("Setas: mover | C: pular | X: dash | Z/V: agarrar | ESC: sair");
-        }
-
-        // BitTags (Tags.Persistent etc.) devem existir antes do Scene dimensionar o TagLists.
-        internal static void InitTags()
-        {
-            System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(Tags).TypeHandle);
-        }
-    }
-
     // Verificacao headless: roda o Player por N frames com DeltaTime simulado (sem janela).
     public static class PlayerSmoke
     {
