@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Definicao de autotile. Schema do Celeste (Autotiler.cs):
+       <Tileset id="c" path="nome">  arte em Graphics/tilesets/<nome>.png, celulas 8x8
+         <set mask="..." tiles="x,y;x,y"/>
+       A mascara tem 9 posicoes, na ordem em que o TileHandler varre a vizinhanca
+       3x3 (linha a linha, esq p/ dir). 0 = vizinho vazio, 1 = solido, x = tanto faz.
+       A posicao central (indice 4) e o proprio tile. Mascaras mais especificas
+       (menos x) sao testadas primeiro — o Autotiler ordena por contagem de x.
+       "center" e "padding" sao os casos em que os 9 vizinhos sao solidos.
+       Arte PLACEHOLDER: as 16 combinacoes de vizinho ortogonal, com as bordas
+       expostas em tom mais claro. -->
+<Data>
+  <Tileset id="1" path="rock">
+    <set mask="center" tiles="1,1"/>
+    <set mask="padding" tiles="1,1"/>
+    <set mask="x0x011x1x" tiles="0,0"/>   <!-- canto sup-esq -->
+    <set mask="x0x111x1x" tiles="1,0"/>   <!-- borda superior -->
+    <set mask="x0x110x1x" tiles="2,0"/>   <!-- canto sup-dir -->
+    <set mask="x0x011x0x" tiles="3,0"/>   <!-- faixa horizontal, ponta esq -->
+    <set mask="x1x011x1x" tiles="0,1"/>   <!-- borda esquerda -->
+    <set mask="x1x111x1x" tiles="1,1"/>   <!-- centro -->
+    <set mask="x1x110x1x" tiles="2,1"/>   <!-- borda direita -->
+    <set mask="x0x111x0x" tiles="3,1"/>   <!-- faixa horizontal, meio -->
+    <set mask="x1x011x0x" tiles="0,2"/>   <!-- canto inf-esq -->
+    <set mask="x1x111x0x" tiles="1,2"/>   <!-- borda inferior -->
+    <set mask="x1x110x0x" tiles="2,2"/>   <!-- canto inf-dir -->
+    <set mask="x0x110x0x" tiles="3,2"/>   <!-- faixa horizontal, ponta dir -->
+    <set mask="x0x010x1x" tiles="0,3"/>   <!-- faixa vertical, topo -->
+    <set mask="x1x010x1x" tiles="1,3"/>   <!-- faixa vertical, meio -->
+    <set mask="x1x010x0x" tiles="2,3"/>   <!-- faixa vertical, base -->
+    <set mask="x0x010x0x" tiles="3,3"/>   <!-- isolado -->
+  </Tileset>
+</Data>

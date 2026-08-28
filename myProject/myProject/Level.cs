@@ -13,7 +13,14 @@ namespace myProject
         public enum CameraLockModes { None, BoundsClamped, Center, FinalBoss, BoostSequence }
 
         public Rectangle Bounds;
-        public Camera Camera = new Camera();
+
+        // Port fiel do wiring do LevelLoader: o GameplayRenderer e dono da camera e o
+        // Level aponta p/ ela (Level.Camera = Level.GameplayRenderer.Camera).
+        // NOTE: no source o campo Camera nasce null e SO o LevelLoader o atribui. Aqui ele
+        // ja nasce com uma camera propria porque os harnesses headless (--parity) montam
+        // Level direto, sem renderer. Quem usa PlayScene sobrescreve pela do renderer.
+        public GameplayRenderer GameplayRenderer;
+        public Camera Camera = new Camera(320, 180);
 
         // NOTE: substitui Session.MapData do Celeste — salas do metroidvania sao retangulos
         // conectados por borda, num mundo persistente (sem load/unload de entidades por sala).

@@ -4,16 +4,18 @@ using Monocle;
 
 namespace myProject
 {
-    // Port fiel do subset de movimento do SolidTiles do Celeste: geometria da sala como
-    // Solid com collider Grid 8x8 construido de VirtualMap<char> ('0' = vazio).
+    // Port fiel do SolidTiles do Celeste: geometria da sala como Solid com collider Grid
+    // 8x8 construido de VirtualMap<char> ('0' = vazio), mais o TileGrid visual gerado pelo
+    // Autotiler a partir do MESMO VirtualMap.
     // Flags fieis: Tags.Global, Depth -10000, EnableAssistModeChecks=false, AllowStaticMovers=false.
-    // NOTE: podas de conteudo — Autotiler/TileGrid/AnimatedTiles (visual; o hitbox e desenhado
-    // pelo HitboxRenderer) e SurfaceSoundIndexAt (som de superficie por tile).
+    // NOTE: poda de conteudo — SurfaceSoundIndexAt (som de superficie por tile).
     [Tracked(false)]
     public class SolidTiles : Solid
     {
         public Grid Grid;
-        public VirtualMap<char> tileTypes;
+        public TileGrid Tiles;
+        public AnimatedTiles AnimatedTiles;
+        private VirtualMap<char> tileTypes;
 
         public SolidTiles(Vector2 position, VirtualMap<char> data)
             : base(position, 0f, 0f, true)
@@ -38,6 +40,30 @@ namespace myProject
                                 Grid[x, y] = true;
                 }
             }
+
+            // Visual: o Autotiler consome o mesmo VirtualMap<char> e devolve o TileGrid.
+            // Sem conteudo carregado (harnesses headless) nao ha autotiler — a cena roda
+            // so com o collider, que e o que esses testes medem.
+            if (GFX.FGAutotiler == null)
+                return;
+
+            Autotiler.Generated generated = GFX.FGAutotiler.GenerateMap(data, true);
+            Tiles = generated.TileGrid;
+            Tiles.VisualExtend = 1;
+            Add(Tiles);
+            Add(AnimatedTiles = generated.SpriteOverlay);
+        }
+
+        // Port fiel. Sem ClipCamera o TileGrid.GetClippedRenderTiles devolve a grade
+        // inteira e o Render desenha TODOS os tiles do mapa a cada frame, em vez de so
+        // os visiveis.
+        public override void Added(Scene scene)
+        {
+            base.Added(scene);
+            if (Tiles == null)
+                return;
+            Tiles.ClipCamera = SceneAs<Level>().Camera;
+            AnimatedTiles.ClipCamera = Tiles.ClipCamera;
         }
     }
 }

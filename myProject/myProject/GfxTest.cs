@@ -62,8 +62,13 @@ namespace MonocleSmoke
 
             Atlas atlas = GFX.Game;
 
-            GfxTest.Check("Atlas: indexa os 7 PNGs de Content/Graphics",
-                atlas.Sources.Count == 7, "Sources=" + atlas.Sources.Count);
+            // Conta os arquivos em disco em vez de cravar um numero: adicionar arte nao
+            // pode quebrar o teste, so arte que o atlas DEIXE de indexar.
+            int onDisk = System.IO.Directory.GetFiles(
+                System.IO.Path.Combine(Engine.ContentDirectory, GFX.GameAtlasPath),
+                "*.png", System.IO.SearchOption.AllDirectories).Length;
+            GfxTest.Check("Atlas: indexa todos os PNGs de Content/Graphics",
+                atlas.Sources.Count == onDisk, "atlas=" + atlas.Sources.Count + " disco=" + onDisk);
 
             GfxTest.Check("Atlas: chave e o caminho relativo sem extensao, com '/'",
                 atlas.Has("player/idle00") && atlas.Has("tiles/rock"),

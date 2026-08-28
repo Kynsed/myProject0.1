@@ -315,7 +315,13 @@ namespace Monocle
                 string name = file.Substring(fullLength + 1);
                 name = name.Substring(0, name.Length - 4);
                 name = name.Replace('\\', '/');
-                atlas.textures.Add(name, new MTexture(texture));
+                MTexture mtexture = new MTexture(texture);
+                // NOTE: divergencia do source, que deixa AtlasPath null aqui. No Celeste
+                // o GFX.Game e um atlas Packer (que preenche AtlasPath); aqui e
+                // FromDirectory, e o PlayerSprite.FrameMetadata indexa POR AtlasPath —
+                // sem isso os metadados de cabelo/carry nunca casariam.
+                mtexture.AtlasPath = name;
+                atlas.textures.Add(name, mtexture);
             }
 
             return atlas;
@@ -392,7 +398,13 @@ namespace Monocle
         {
             List<MTexture> list;
             if (orderedTexturesCache.TryGetValue(key, out list))
-                return list[index];
+            {
+                // FIX: os dois ramos discordavam. Sem cache, GetAtlasSubtextureFromAtlasAt
+                // devolve null p/ indice inexistente; com cache, list[index] LANCAVA
+                // ArgumentOutOfRange. O resultado dependia de a chave ja ter sido pedida
+                // antes — quem chama nao tem como saber. Agora ambos devolvem null.
+                return (index >= 0 && index < list.Count) ? list[index] : null;
+            }
             return GetAtlasSubtextureFromAtlasAt(key, index);
         }
 

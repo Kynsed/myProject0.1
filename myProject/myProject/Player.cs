@@ -317,7 +317,15 @@ namespace myProject
 				if (this.Sprite.CurrentAnimationID == "startStarFly")
 				{
 					float scale = (float)this.Sprite.CurrentAnimationFrame / (float)this.Sprite.CurrentAnimationTotalFrames;
-					GFX.Game.GetAtlasSubtexturesAt("characters/player/startStarFlyWhite", this.Sprite.CurrentAnimationFrame).Draw(this.Sprite.RenderPosition, this.Sprite.Origin, this.starFlyColor * scale, this.Sprite.Scale, this.Sprite.Rotation, SpriteEffects.None);
+					// FIX: sem a arte do flash — ou com contagem de frames diferente da animacao —
+					// o GetAtlasSubtexturesAt devolve null e o Draw lancava NullReference. Idem se
+					// nao houver atlas (Content/Graphics ausente). O flash e efeito visual:
+					// ausente, e inofensivo. Caminho em GFX.StarFlyWhitePath.
+					MTexture starFlyWhite = GFX.Loaded
+						? GFX.Game.GetAtlasSubtexturesAt(GFX.StarFlyWhitePath, this.Sprite.CurrentAnimationFrame)
+						: null;
+					if (starFlyWhite != null)
+						starFlyWhite.Draw(this.Sprite.RenderPosition, this.Sprite.Origin, this.starFlyColor * scale, this.Sprite.Scale, this.Sprite.Rotation, SpriteEffects.None);
 				}
 				PlayerSprite sprite2 = this.Sprite;
 				sprite2.Scale.X = sprite2.Scale.X * (float)this.Facing;

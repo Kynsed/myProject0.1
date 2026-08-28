@@ -8,11 +8,25 @@ namespace myProject
 {
     public class PlayScene : Level
     {
+        // Overlay de debug. F liga/desliga — util p/ auditar a arte por baixo.
+        public HitboxRenderer Hitboxes;
+
+        public override void Update()
+        {
+            base.Update();
+            if (MInput.Keyboard.Pressed(Microsoft.Xna.Framework.Input.Keys.F))
+                Hitboxes.Visible = !Hitboxes.Visible;
+        }
+
         public PlayScene()
         {
             // Mundo carregado de Content/map.txt (RoomMap): 2 salas em tiles conectadas pela
             // borda x=640. Cruzar a direita dispara a transicao fiel (glide + pan + refil).
-            Add(new HitboxRenderer());
+            // Port fiel do LevelLoader: o renderer nasce, entra na cena e vira dono da
+            // camera. O HitboxRenderer vem depois p/ o debug ficar por cima.
+            Add(GameplayRenderer = new GameplayRenderer());
+            Camera = GameplayRenderer.Camera;
+            Add(Hitboxes = new HitboxRenderer());
             RoomMap.Load(this, System.IO.File.ReadAllLines(
                 System.IO.Path.Combine(AppContext.BaseDirectory, "Content", "map.txt")));
             Bounds = Rooms[0];

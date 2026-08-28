@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Banco de sprites. Schema do Celeste (Monocle/SpriteData.cs):
+       <nome path="prefixo/"> <Justify x= y=/>
+         <Loop id= path= delay= frames=/>      animacao ciclica
+         <Anim id= path= delay= goto=/>        toca uma vez, encadeia p/ goto
+       <variante copy="nome" path="prefixo/"/> herda as animacoes
+     Arte PLACEHOLDER: 2 fitas reais (idle, run) cobrem os 42 ids do Player.
+     Dar arte propria a um id = trocar o path dele. -->
+<Sprites>
+
+  <player path="player/">
+    <Justify x="0.5" y="1"/>
+    <Loop id="idle" path="idle" delay="0.1666"/>
+    <Loop id="run" path="run" delay="0.0833"/>
+
+    <!-- startStarFly encadeia p/ starFly, como no Celeste: o StarFlyCoroutine faz
+         while (Sprite.CurrentAnimationID == "startStarFly"). Sem o goto, o id nunca
+         muda e o player fica preso no estado. -->
+    <Anim id="startStarFly" path="idle" delay="0.1666" goto="starFly"/>
+    <Loop id="starFly" path="idle" delay="0.1666"/>
+
+    <!-- locomocao -->
+    <Loop id="runFast" path="run" delay="0.0833"/>
+    <Loop id="runSlow" path="run" delay="0.0833"/>
+    <Loop id="runSlow_carry" path="run" delay="0.0833"/>
+    <Loop id="runStumble" path="run" delay="0.0833"/>
+    <Loop id="runWind" path="run" delay="0.0833"/>
+    <Loop id="walk" path="run" delay="0.0833"/>
+
+    <!-- sem arte propria ainda -->
+    <Loop id="asleep" path="idle" delay="0.1666"/>
+    <Loop id="bigFall" path="idle" delay="0.1666"/>
+    <Loop id="bigFallRecover" path="idle" delay="0.1666"/>
+    <Loop id="bubble" path="idle" delay="0.1666"/>
+    <Loop id="climbLookBackStart" path="idle" delay="0.1666"/>
+    <Loop id="climbUp" path="idle" delay="0.1666"/>
+    <Loop id="dangling" path="idle" delay="0.1666"/>
+    <Loop id="dash" path="idle" delay="0.1666"/>
+    <Loop id="dreamDashIn" path="idle" delay="0.1666"/>
+    <Loop id="dreamDashOut" path="idle" delay="0.1666"/>
+    <Loop id="duck" path="idle" delay="0.1666"/>
+    <Loop id="edge" path="idle" delay="0.1666"/>
+    <Loop id="edgeBack" path="idle" delay="0.1666"/>
+    <Loop id="fallFast" path="idle" delay="0.1666"/>
+    <Loop id="fallPose" path="idle" delay="0.1666"/>
+    <Loop id="fallSlow" path="idle" delay="0.1666"/>
+    <Loop id="fallSlow_carry" path="idle" delay="0.1666"/>
+    <Loop id="flip" path="idle" delay="0.1666"/>
+    <Loop id="idle_carry" path="idle" delay="0.1666"/>
+    <Loop id="jumpFast" path="idle" delay="0.1666"/>
+    <Loop id="jumpSlow" path="idle" delay="0.1666"/>
+    <Loop id="jumpSlow_carry" path="idle" delay="0.1666"/>
+    <Loop id="launch" path="idle" delay="0.1666"/>
+    <Loop id="launchRecover" path="idle" delay="0.1666"/>
+    <Loop id="lookUp" path="idle" delay="0.1666"/>
+    <Loop id="pickup" path="idle" delay="0.1666"/>
+    <Loop id="push" path="idle" delay="0.1666"/>
+    <Loop id="skid" path="idle" delay="0.1666"/>
+    <Loop id="swimDown" path="idle" delay="0.1666"/>
+    <Loop id="swimIdle" path="idle" delay="0.1666"/>
+    <Loop id="swimUp" path="idle" delay="0.1666"/>
+    <Loop id="throw" path="idle" delay="0.1666"/>
+    <Loop id="tired" path="idle" delay="0.1666"/>
+    <Loop id="wallslide" path="idle" delay="0.1666"/>
+
+    <!-- Metadados por frame (PlayerSprite.CreateFramesMetadata). 'hair' e uma lista por
+         frame separada por barra vertical: "x,y" do offset do cabelo, opcionalmente
+         ":frame". 'carry' e o offset Y do objeto carregado, por frame, separado por
+         virgula. Valores PLACEHOLDER. -->
+    <Metadata>
+      <Frames path="idle" hair="0,-6|0,-6" carry="0,0"/>
+      <Frames path="run" hair="0,-6|0,-5|0,-6|0,-5" carry="0,0,0,0"/>
+    </Metadata>
+  </player>
+
+  <!-- PlayerSpriteMode: o PlayerSprite escolhe a entrada pelo modo -->
+  <player_no_backpack copy="player" path="player/"/>
+  <badeline copy="player" path="player/"/>
+  <player_badeline copy="player" path="player/"/>
+  <player_playback copy="player" path="player/"/>
+
+  <player_sweat path="player/">
+    <Justify x="0.5" y="1"/>
+    <Loop id="idle" path="idle" delay="0.1666"/>
+    <Loop id="climb" path="idle" delay="0.1666"/>
+    <Loop id="danger" path="idle" delay="0.1666"/>
+    <Loop id="jump" path="idle" delay="0.1666"/>
+  </player_sweat>
+
+</Sprites>
