@@ -11,6 +11,8 @@ using myProject;   // PlayGame/PlayScene
 //   --sprite-test    -> contrato de animacoes: todo id do Player.cs resolve no banco
 //   --starfly-test   -> estado StarFly com render (flash branco + fim da anim de intro)
 //   --tile-test      -> contrato do autotile: qual celula do tileset cada mascara escolhe
+//   --input-test     -> bindings do Celeste, virtual inputs e efeito de tecla (headless)
+//   --audio-test     -> banco de sons e contrato de eventos do codigo
 //   --shot <png> [n] -> roda o --play por n frames e salva o backbuffer em PNG
 string mode = args.Length > 0 ? args[0] : "";
 
@@ -45,6 +47,14 @@ if (mode == "--starfly-test")
 if (mode == "--tile-test")
 {
     Environment.Exit(TileTest.Run());
+}
+if (mode == "--input-test")
+{
+    Environment.Exit(InputTest.Run());
+}
+if (mode == "--audio-test")
+{
+    Environment.Exit(AudioTest.Run());
 }
 if (mode == "--shot")
 {

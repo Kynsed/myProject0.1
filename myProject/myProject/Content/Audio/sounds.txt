@@ -1,0 +1,84 @@
+// Banco de sons. Formato:
+//   sound <nome> <arquivo> [volume]   declara um som
+//   alias <evento> <nome>             mapeia um evento p/ um som
+//
+// POR QUE EXISTE ALIAS: o codigo herdado do port pede som por nome de evento
+// do FMOD ("event:/char/madeline/jump"). Nao ha FMOD aqui, entao os 49 eventos
+// caem em 8 sons sintetizados. O --audio-test le os eventos direto dos .cs,
+// entao evento novo no codigo quebra a bateria ate ganhar alias.
+//
+// Arte sonora PLACEHOLDER: trocar o som = trocar o WAV.
+
+sound jump     jump.wav     0.5
+sound land     land.wav     0.5
+sound step     step.wav     0.35
+sound dash     dash.wav     0.5
+sound death    death.wav    0.6
+sound grab     grab.wav     0.4
+sound splash   splash.wav   0.45
+sound generic  generic.wav  0.35
+
+// -> dash
+alias event:/char/madeline/dash_pink_left dash
+alias event:/char/madeline/dash_pink_right dash
+alias event:/char/madeline/dash_red_left dash
+alias event:/char/madeline/dash_red_right dash
+alias event:/char/madeline/water_dash_gen dash
+
+// -> death
+alias event:/char/madeline/dreamblock_exit death
+alias event:/char/madeline/revive death
+
+// -> generic
+alias event:/char/madeline/campfire_stand generic
+alias event:/char/madeline/dreamblock_enter generic
+alias event:/char/madeline/dreamblock_travel generic
+alias event:/char/madeline/duck generic
+alias event:/char/madeline/idle_crackknuckles generic
+alias event:/char/madeline/idle_scratch generic
+alias event:/char/madeline/idle_sneeze generic
+alias event:/char/madeline/stand generic
+alias event:/char/madeline/summit_areastart generic
+alias event:/char/madeline/summit_sit generic
+alias event:/char/madeline/wallslide generic
+alias event:/game/06_reflection/feather_state_bump generic
+alias event:/game/06_reflection/feather_state_end generic
+alias event:/game/06_reflection/feather_state_loop generic
+alias event:/game/06_reflection/feather_state_warning generic
+alias event:/game/09_core/conveyor_activate generic
+alias event:/game/general/assist_dreamblockbounce generic
+alias event:/game/general/assist_screenbottom generic
+alias event:/music/lvl6/main generic
+alias event:/new_content/char/madeline/hiccup_ducking generic
+alias event:/new_content/char/madeline/hiccup_standing generic
+alias event:/new_content/game/10_farewell/glider_platform_dissipate generic
+
+// -> grab
+alias event:/char/madeline/climb_ledge grab
+alias event:/char/madeline/crystaltheo_lift grab
+alias event:/char/madeline/crystaltheo_throw grab
+alias event:/char/madeline/grab grab
+alias event:/char/madeline/grab_letgo grab
+alias event:/char/madeline/handhold grab
+
+// -> jump
+alias event:/char/madeline/jump jump
+alias event:/char/madeline/jump_assisted jump
+alias event:/char/madeline/jump_climb_left jump
+alias event:/char/madeline/jump_climb_right jump
+alias event:/char/madeline/jump_dreamblock jump
+alias event:/char/madeline/jump_super jump
+alias event:/char/madeline/jump_superslide jump
+alias event:/char/madeline/jump_superwall jump
+alias event:/char/madeline/jump_wall_left jump
+alias event:/char/madeline/jump_wall_right jump
+
+// -> land
+alias event:/char/madeline/landing land
+alias event:/char/madeline/mirrortemple_big_landing land
+
+// -> splash
+alias event:/char/madeline/water_move_shallow splash
+
+// -> step
+alias event:/char/madeline/footstep step

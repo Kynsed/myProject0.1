@@ -13,7 +13,21 @@ namespace myProject
 
         public override void Update()
         {
+            // Pause (Enter / Start no controle, como no Celeste). Os renderers seguem
+            // rodando com a cena pausada, entao o overlay de debug continua utilizavel.
+            // NOTE: o Level.Pause do Celeste abre um menu — conteudo que nao existe aqui.
+            if (Input.Pause.Pressed || Input.ESC.Pressed)
+            {
+                // ConsumePress, nao ConsumeBuffer: o Pressed do VirtualButton e
+                // (buffer > 0 || Binding.Pressed), e o buffer do Pause e 0.1s — sem
+                // consumir o APERTO, o toggle dispararia varios frames seguidos.
+                Input.Pause.ConsumePress();
+                Input.ESC.ConsumePress();
+                Paused = !Paused;
+            }
+
             base.Update();
+
             if (MInput.Keyboard.Pressed(Microsoft.Xna.Framework.Input.Keys.F))
                 Hitboxes.Visible = !Hitboxes.Visible;
         }
@@ -26,6 +40,8 @@ namespace myProject
             // camera. O HitboxRenderer vem depois p/ o debug ficar por cima.
             Add(GameplayRenderer = new GameplayRenderer());
             Camera = GameplayRenderer.Camera;
+            // O Celeste posiciona o som pelo listener 3D do FMOD; aqui a camera da o pan.
+            Audio.SetCamera(Camera);
             Add(Hitboxes = new HitboxRenderer());
             RoomMap.Load(this, System.IO.File.ReadAllLines(
                 System.IO.Path.Combine(AppContext.BaseDirectory, "Content", "map.txt")));
@@ -54,10 +70,12 @@ namespace myProject
         {
             base.LoadContent();
             GFX.Load();
+            Audio.Load();
         }
 
         protected override void UnloadContent()
         {
+            Audio.Unload();
             GFX.Unload();
             base.UnloadContent();
         }
@@ -66,9 +84,12 @@ namespace myProject
         {
             base.Initialize();
             Input.Initialize();
+            // Fiel ao Celeste.cs: ESC nao fecha o jogo, ele pausa.
+            Engine.ExitOnEscapeKeypress = false;
             InitTags();
             Scene = new PlayScene();
-            Console.WriteLine("Setas: mover | C: pular | X: dash | Z/V: agarrar | ESC: sair");
+            Console.WriteLine("Setas: mover | C: pular | X: dash | Z/V/Shift: agarrar");
+            Console.WriteLine("Enter ou ESC: pausar | F: hitboxes | ~: console");
         }
 
         // BitTags (Tags.Persistent etc.) devem existir antes do Scene dimensionar o TagLists.

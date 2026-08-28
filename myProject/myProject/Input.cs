@@ -5,8 +5,12 @@ using Monocle;
 
 namespace myProject
 {
-    // Port fiel do subsistema de input de MOVIMENTO (buffers/deadzones/timings preservados).
-    // NOTE: GUI/menu/montanha/prefixos de botao podados (conteudo, sem efeito no movimento).
+    // Port do subsistema de input do Celeste: buffers, deadzones e thresholds preservados.
+    // Movimento (MoveX/MoveY/Aim/Feather/Jump/Dash/Grab/Talk/CrouchDash) e os controles de
+    // sistema e menu (Pause/ESC/QuickRestart/Menu*) com os mesmos valores do original.
+    //
+    // NOTE: podas — MountainAim (cena da montanha, que nao existe aqui) e os prefixos de
+    // icone de botao (GuiInputPrefix e afins, que sao conteudo de UI).
     public static class Input
     {
         public static int Gamepad
@@ -42,6 +46,26 @@ namespace myProject
             Talk = new VirtualButton(Settings.Instance.Talk, Gamepad, 0.08f, 0.2f);
             Grab = new VirtualButton(Settings.Instance.Grab, Gamepad, 0f, 0.2f);
             CrouchDash = new VirtualButton(Settings.Instance.DemoDash, Gamepad, 0.08f, 0.2f);
+
+            // Sistema. ESC e binding fixo no Celeste (nao sai do Settings), so teclado.
+            Binding escBinding = new Binding();
+            escBinding.Add(Keys.Escape);
+            ESC = new VirtualButton(escBinding, Gamepad, 0.1f, 0.2f);
+            Pause = new VirtualButton(Settings.Instance.Pause, Gamepad, 0.1f, 0.2f);
+            QuickRestart = new VirtualButton(Settings.Instance.QuickRestart, Gamepad, 0.1f, 0.2f);
+
+            // Menu: buffer 0, threshold 0.4 e repeticao 0.4/0.1 nos direcionais.
+            MenuLeft = new VirtualButton(Settings.Instance.MenuLeft, Gamepad, 0f, 0.4f);
+            MenuLeft.SetRepeat(0.4f, 0.1f);
+            MenuRight = new VirtualButton(Settings.Instance.MenuRight, Gamepad, 0f, 0.4f);
+            MenuRight.SetRepeat(0.4f, 0.1f);
+            MenuUp = new VirtualButton(Settings.Instance.MenuUp, Gamepad, 0f, 0.4f);
+            MenuUp.SetRepeat(0.4f, 0.1f);
+            MenuDown = new VirtualButton(Settings.Instance.MenuDown, Gamepad, 0f, 0.4f);
+            MenuDown.SetRepeat(0.4f, 0.1f);
+            MenuJournal = new VirtualButton(Settings.Instance.Journal, Gamepad, 0f, 0.2f);
+            MenuConfirm = new VirtualButton(Settings.Instance.Confirm, Gamepad, 0f, 0.2f);
+            MenuCancel = new VirtualButton(Settings.Instance.Cancel, Gamepad, 0f, 0.2f);
         }
 
         public static void Deregister()
@@ -56,6 +80,16 @@ namespace myProject
             MoveY?.Deregister();
             GliderMoveY?.Deregister();
             Feather?.Deregister();
+            ESC?.Deregister();
+            Pause?.Deregister();
+            QuickRestart?.Deregister();
+            MenuLeft?.Deregister();
+            MenuRight?.Deregister();
+            MenuUp?.Deregister();
+            MenuDown?.Deregister();
+            MenuJournal?.Deregister();
+            MenuConfirm?.Deregister();
+            MenuCancel?.Deregister();
         }
 
         public static void Rumble(RumbleStrength strength, RumbleLength length)
@@ -167,6 +201,17 @@ namespace myProject
         public static VirtualButton Grab;
         public static VirtualButton Talk;
         public static VirtualButton CrouchDash;
+
+        public static VirtualButton ESC;
+        public static VirtualButton Pause;
+        public static VirtualButton QuickRestart;
+        public static VirtualButton MenuLeft;
+        public static VirtualButton MenuRight;
+        public static VirtualButton MenuUp;
+        public static VirtualButton MenuDown;
+        public static VirtualButton MenuJournal;
+        public static VirtualButton MenuConfirm;
+        public static VirtualButton MenuCancel;
 
         private static bool grabToggle;
         public static Vector2 LastAim;
