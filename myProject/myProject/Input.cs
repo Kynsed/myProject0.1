@@ -11,6 +11,9 @@ namespace myProject
     //
     // NOTE: podas — MountainAim (cena da montanha, que nao existe aqui) e os prefixos de
     // icone de botao (GuiInputPrefix e afins, que sao conteudo de UI).
+    //
+    // NOTE: jogo proprio — UpdateGamepadSlot (escolha automatica do slot do controle).
+    // O Celeste faz essa escolha na tela de titulo, que nao existe aqui.
     public static class Input
     {
         public static int Gamepad
@@ -90,6 +93,75 @@ namespace myProject
             MenuJournal?.Deregister();
             MenuConfirm?.Deregister();
             MenuCancel?.Deregister();
+        }
+
+        // --- escolha do slot do controle ---
+        //
+        // NOTE: jogo proprio. No Celeste quem define Input.Gamepad e a tela de titulo (o
+        // controle que apertar Confirm). Sem tela de titulo aqui, a regra e "o ultimo
+        // controle usado manda": um aperto em qualquer outro slot faz dele o slot ativo.
+        // O teclado nao entra nisso — ele vale sempre, com qualquer slot.
+        //
+        // So BORDAS contam (botao que desceu, gatilho ou analogico que cruzou o limiar),
+        // nunca o nivel: um dispositivo com eixo preso longe do centro nao rouba o slot
+        // nem impede a troca. E a borda precisa de duas amostras conectadas, entao o
+        // frame em que o controle conecta (ou em que a janela volta ao foco) nao conta.
+        public const float SlotTriggerThreshold = 0.2f;   // o mesmo das acoes (Jump/Dash/Grab)
+        public const float SlotStickThreshold = 0.3f;     // o mesmo do MoveX
+
+        private static readonly Buttons[] slotButtons = new Buttons[]
+        {
+            Buttons.A, Buttons.B, Buttons.X, Buttons.Y, Buttons.Start, Buttons.Back,
+            Buttons.LeftShoulder, Buttons.RightShoulder, Buttons.LeftStick, Buttons.RightStick,
+            Buttons.DPadUp, Buttons.DPadDown, Buttons.DPadLeft, Buttons.DPadRight
+        };
+
+        // Chamar uma vez por frame, depois do MInput.Update e antes de ler qualquer input.
+        // Devolve true no frame em que o slot ativo mudou.
+        public static bool UpdateGamepadSlot()
+        {
+            // Empate no mesmo frame: quem ja esta jogando fica com o controle.
+            if (JustUsed(MInput.GamePads[gamepad]))
+                return false;
+
+            for (int i = 0; i < MInput.GamePads.Length; i++)
+            {
+                if (i == gamepad || !JustUsed(MInput.GamePads[i]))
+                    continue;
+
+                Gamepad = i;   // reconstroi os virtuais apontando p/ o novo slot
+
+                // Os virtuais acabaram de nascer zerados. Atualizar agora faz o frame da
+                // troca valer como um frame normal: a direcao segurada ja move e o aperto
+                // que causou a troca entra no buffer em vez de se perder.
+                foreach (VirtualInput virtualInput in MInput.VirtualInputs)
+                    virtualInput.Update();
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool JustUsed(MInput.GamePadData pad)
+        {
+            GamePadState now = pad.CurrentState;
+            GamePadState was = pad.PreviousState;
+            if (!now.IsConnected || !was.IsConnected)
+                return false;
+
+            foreach (Buttons button in slotButtons)
+                if (now.IsButtonDown(button) && was.IsButtonUp(button))
+                    return true;
+
+            return Crossed(now.Triggers.Left, was.Triggers.Left, SlotTriggerThreshold)
+                || Crossed(now.Triggers.Right, was.Triggers.Right, SlotTriggerThreshold)
+                || Crossed(now.ThumbSticks.Left.Length(), was.ThumbSticks.Left.Length(), SlotStickThreshold)
+                || Crossed(now.ThumbSticks.Right.Length(), was.ThumbSticks.Right.Length(), SlotStickThreshold);
+        }
+
+        private static bool Crossed(float now, float was, float threshold)
+        {
+            return now >= threshold && was < threshold;
         }
 
         public static void Rumble(RumbleStrength strength, RumbleLength length)

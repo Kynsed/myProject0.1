@@ -13,6 +13,11 @@ namespace myProject
 
         public override void Update()
         {
+            // NOTE: jogo proprio. Antes de qualquer leitura de input do frame: se outro
+            // controle foi usado, ele vira o slot ativo (ver Input.UpdateGamepadSlot).
+            if (Input.UpdateGamepadSlot())
+                Console.WriteLine("Controle ativo: slot " + Input.Gamepad);
+
             // Pause (Enter / Start no controle, como no Celeste). Os renderers seguem
             // rodando com a cena pausada, entao o overlay de debug continua utilizavel.
             // NOTE: o Level.Pause do Celeste abre um menu — conteudo que nao existe aqui.

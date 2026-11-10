@@ -11,7 +11,8 @@ using myProject;   // PlayGame/PlayScene
 //   --sprite-test    -> contrato de animacoes: todo id do Player.cs resolve no banco
 //   --starfly-test   -> estado StarFly com render (flash branco + fim da anim de intro)
 //   --tile-test      -> contrato do autotile: qual celula do tileset cada mascara escolhe
-//   --input-test     -> bindings do Celeste, virtual inputs e efeito de tecla (headless)
+//   --input-test     -> bindings do Celeste, virtual inputs, efeito de tecla e de controle,
+//                       escolha do slot do controle (headless)
 //   --audio-test     -> banco de sons e contrato de eventos do codigo
 //   --shot <png> [n] -> roda o --play por n frames e salva o backbuffer em PNG
 string mode = args.Length > 0 ? args[0] : "";

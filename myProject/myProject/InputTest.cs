@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using Monocle;
 using myProject;
 
 // Contrato do input: os bindings do Celeste (teclado e controle), os VirtualInput que o
-// Input.Initialize monta com os thresholds certos, e o efeito real de uma tecla injetada.
+// Input.Initialize monta com os thresholds certos, o efeito real de uma tecla e de um
+// estado de controle injetados, e a escolha automatica do slot do controle.
 // Headless — input nao precisa de GraphicsDevice.
 namespace MonocleSmoke
 {
@@ -30,6 +32,8 @@ namespace MonocleSmoke
                 Bindings();
                 Virtuals();
                 Behaviour();
+                Controller();
+                GamepadSlot();
             }
             catch (Exception e)
             {
@@ -233,6 +237,202 @@ namespace MonocleSmoke
             Step();
             Check("Grab nao tem buffer (buffer 0 no Celeste)", !Input.Grab.Check,
                 "Check=" + Input.Grab.Check);
+        }
+
+        // ---- controle (estado injetado) ----
+
+        // Estado de um controle CONECTADO. Analogico no eixo do XNA: Y positivo = cima.
+        private static GamePadState Pad(Vector2 left = default(Vector2), float lt = 0f, float rt = 0f,
+            Buttons buttons = (Buttons)0, bool dpadLeft = false, bool dpadDown = false)
+        {
+            GamePadDPad dpad = new GamePadDPad(
+                ButtonState.Released,
+                dpadDown ? ButtonState.Pressed : ButtonState.Released,
+                dpadLeft ? ButtonState.Pressed : ButtonState.Released,
+                ButtonState.Released);
+            return new GamePadState(new GamePadThumbSticks(left, Vector2.Zero),
+                new GamePadTriggers(lt, rt), new GamePadButtons(buttons), dpad);
+        }
+
+        // Slot vazio: o GamePadState default tem IsConnected = false.
+        private static readonly GamePadState Unplugged = new GamePadState();
+
+        // Um frame com o estado dos 4 slots, na ordem do Engine.Update: o MInput le os
+        // dispositivos e atualiza os virtuais; so depois a cena roda (e e ela quem chama
+        // Input.UpdateGamepadSlot).
+        private static void StepPads(GamePadState s0, GamePadState s1, GamePadState s2, GamePadState s3)
+        {
+            GamePadState[] states = { s0, s1, s2, s3 };
+            for (int i = 0; i < MInput.GamePads.Length; i++)
+            {
+                MInput.GamePads[i].PreviousState = MInput.GamePads[i].CurrentState;
+                MInput.GamePads[i].CurrentState = states[i];
+            }
+            foreach (VirtualInput vi in MInput.VirtualInputs)
+                vi.Update();
+        }
+
+        // So o slot indicado recebe o estado; os outros ficam conectados e neutros.
+        private static void StepPad(int slot, GamePadState state)
+        {
+            GamePadState n = Pad();
+            StepPads(slot == 0 ? state : n, slot == 1 ? state : n,
+                slot == 2 ? state : n, slot == 3 ? state : n);
+        }
+
+        // Efeito real do controle no slot ativo — o equivalente do Behaviour() p/ teclado.
+        private static void Controller()
+        {
+            Console.WriteLine("-- controle (estado injetado no slot 0) --");
+            Input.Gamepad = 0;
+            StepPad(0, Pad());
+            StepPad(0, Pad());
+
+            Check("estado injetado conta como controle conectado",
+                MInput.GamePads[0].CurrentState.IsConnected && !Unplugged.IsConnected,
+                "conectado=" + MInput.GamePads[0].CurrentState.IsConnected);
+
+            StepPad(0, Pad(left: new Vector2(0.5f, 0f)));
+            Check("analogico p/ a direita move o eixo p/ +1", Input.MoveX.Value == 1, "MoveX=" + Input.MoveX.Value);
+
+            StepPad(0, Pad(left: new Vector2(0.2f, 0f)));
+            Check("analogico abaixo do limiar do MoveX (0.3) nao move", Input.MoveX.Value == 0, "MoveX=" + Input.MoveX.Value);
+
+            StepPad(0, Pad());
+            StepPad(0, Pad(dpadLeft: true));
+            Check("d-pad p/ a esquerda move o eixo p/ -1", Input.MoveX.Value == -1, "MoveX=" + Input.MoveX.Value);
+
+            // MoveY tem limiar 0.7: inclinar o analogico na diagonal enquanto corre nao
+            // pode agachar nem acelerar a queda sem querer.
+            StepPad(0, Pad());
+            StepPad(0, Pad(left: new Vector2(0f, 0.5f)));
+            int halfUp = Input.MoveY.Value;
+            StepPad(0, Pad(left: new Vector2(0f, 0.8f)));
+            Check("MoveY so responde acima de 0.7 (cima = -1)",
+                halfUp == 0 && Input.MoveY.Value == -1, "a0.5=" + halfUp + " a0.8=" + Input.MoveY.Value);
+
+            StepPad(0, Pad());
+            StepPad(0, Pad(dpadDown: true));
+            Check("d-pad p/ baixo move o eixo p/ +1", Input.MoveY.Value == 1, "MoveY=" + Input.MoveY.Value);
+
+            StepPad(0, Pad());
+            StepPad(0, Pad(buttons: Buttons.A));
+            Check("A dispara Jump.Pressed", Input.Jump.Pressed, "Pressed=" + Input.Jump.Pressed);
+
+            StepPad(0, Pad());
+            StepPad(0, Pad(buttons: Buttons.X));
+            Check("X dispara Dash.Pressed", Input.Dash.Pressed, "Pressed=" + Input.Dash.Pressed);
+
+            StepPad(0, Pad());
+            StepPad(0, Pad(rt: 0.5f));
+            bool triggerHeld = Input.Grab.Check;
+            StepPad(0, Pad(rt: 0.1f));
+            Check("gatilho segura Grab acima de 0.2 e solta abaixo",
+                triggerHeld && !Input.Grab.Check, "a0.5=" + triggerHeld + " a0.1=" + Input.Grab.Check);
+
+            StepPad(0, Pad());
+            StepPad(0, Pad(buttons: Buttons.Start));
+            Check("Start dispara Pause.Pressed", Input.Pause.Pressed, "Pressed=" + Input.Pause.Pressed);
+
+            StepPad(0, Pad());
+            StepPad(0, Pad(left: new Vector2(0.7f, 0.7f)));
+            Vector2 aim = Input.GetAimVector(Facings.Right);
+            Check("mira do dash: analogico cima-direita vira a diagonal (0.707, -0.707)",
+                Math.Abs(aim.X - 0.7071f) < 0.01f && Math.Abs(aim.Y + 0.7071f) < 0.01f, "aim=" + aim);
+
+            StepPad(0, Pad());
+        }
+
+        // Escolha automatica do slot (jogo proprio, ver Input.UpdateGamepadSlot): o ultimo
+        // controle USADO manda, e uso e borda de aperto — nunca nivel.
+        private static void GamepadSlot()
+        {
+            Console.WriteLine("-- escolha do slot do controle --");
+            GamePadState n = Pad();
+            Input.Gamepad = 0;
+            StepPads(n, n, n, n);
+            StepPads(n, n, n, n);
+            Check("todos parados: o slot nao muda",
+                !Input.UpdateGamepadSlot() && Input.Gamepad == 0, "slot=" + Input.Gamepad);
+
+            // O caso que motivou a regra: o controle caiu num slot que nao e o 0.
+            StepPad(1, Pad(left: new Vector2(0.9f, 0f)));
+            int before = Input.MoveX.Value;   // o jogo ainda le o slot 0
+            bool switched = Input.UpdateGamepadSlot();
+            Check("usar um controle em outro slot faz dele o slot ativo",
+                before == 0 && switched && Input.Gamepad == 1,
+                "antes=" + before + " trocou=" + switched + " slot=" + Input.Gamepad);
+            Check("a direcao segurada ja vale no frame da troca",
+                Input.MoveX.Value == 1, "MoveX=" + Input.MoveX.Value);
+
+            Input.Gamepad = 0;
+            StepPads(n, n, n, n);
+            StepPads(n, n, n, n);
+            StepPad(1, Pad(buttons: Buttons.A));
+            switched = Input.UpdateGamepadSlot();
+            bool onSwitch = Input.Jump.Pressed;
+            StepPad(1, Pad(buttons: Buttons.A));   // segue segurando
+            Input.UpdateGamepadSlot();
+            Check("o aperto que troca o slot dispara o pulo e entra no buffer",
+                switched && onSwitch && Input.Jump.Pressed,
+                "trocou=" + switched + " noFrame=" + onSwitch + " buffer=" + Input.Jump.Pressed);
+
+            // ativo = 1. Os dois controles apertam no mesmo frame: quem ja joga fica.
+            StepPads(n, n, n, n);
+            StepPads(Pad(buttons: Buttons.A), Pad(buttons: Buttons.B), n, n);
+            Check("empate no mesmo frame: o slot ativo fica",
+                !Input.UpdateGamepadSlot() && Input.Gamepad == 1, "slot=" + Input.Gamepad);
+
+            StepPads(n, n, n, n);
+            StepPad(0, Pad(buttons: Buttons.A));
+            Check("o controle anterior retoma quando e usado sozinho",
+                Input.UpdateGamepadSlot() && Input.Gamepad == 0, "slot=" + Input.Gamepad);
+
+            // Dispositivo com eixo preso (volante, pedal, analogico com defeito): nivel
+            // alto o tempo todo, nenhuma borda depois de conectar.
+            GamePadState stuck = Pad(left: new Vector2(0.9f, 0f), rt: 1f);
+            StepPads(n, n, Unplugged, n);
+            StepPads(n, n, Unplugged, n);
+            bool stole = false;
+            for (int i = 0; i < 6; i++)
+            {
+                StepPads(n, n, stuck, n);
+                stole |= Input.UpdateGamepadSlot();
+            }
+            Check("dispositivo com eixo preso nao rouba o slot",
+                !stole && Input.Gamepad == 0, "roubou=" + stole + " slot=" + Input.Gamepad);
+
+            StepPads(n, Pad(buttons: Buttons.A), stuck, n);
+            Check("eixo preso em outro slot nao impede a troca",
+                Input.UpdateGamepadSlot() && Input.Gamepad == 1, "slot=" + Input.Gamepad);
+
+            // Conectar (ou a janela voltar ao foco) com um botao ja apertado nao e uso:
+            // falta a amostra anterior p/ haver borda.
+            Input.Gamepad = 0;
+            StepPads(n, n, n, Unplugged);
+            StepPads(n, n, n, Unplugged);
+            StepPads(n, n, n, Pad(buttons: Buttons.A));
+            bool onConnect = Input.UpdateGamepadSlot();
+            StepPads(n, n, n, n);
+            StepPads(n, n, n, Pad(buttons: Buttons.A));
+            bool onPress = Input.UpdateGamepadSlot();
+            Check("conectar com botao apertado nao troca; o aperto seguinte troca",
+                !onConnect && onPress && Input.Gamepad == 3,
+                "naConexao=" + onConnect + " noAperto=" + onPress + " slot=" + Input.Gamepad);
+
+            // O teclado nao depende de slot.
+            StepPads(n, n, n, n);
+            Step();
+            Step(Keys.C);
+            Check("teclado segue valendo com qualquer slot ativo",
+                Input.Jump.Pressed, "slot=" + Input.Gamepad + " Pressed=" + Input.Jump.Pressed);
+            Step();
+
+            Check("trocar de slot nao acumula virtuais no MInput",
+                MInput.VirtualInputs.Count == 20, "registrados=" + MInput.VirtualInputs.Count);
+
+            Input.Gamepad = 0;
+            StepPads(Unplugged, Unplugged, Unplugged, Unplugged);
         }
     }
 }
